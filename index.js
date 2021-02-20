@@ -116,12 +116,12 @@ window.addEventListener('load', () => {
                     partyMax: parseInt(document.querySelector('#partyMax').value),
                     partySize: parseInt(document.querySelector('#partySize').value),
                     joinSecret: document.querySelector('#joinSecret').value,
-                    buttons: Array.from(document.querySelectorAll('.btnElement')).map(x => {
+                    buttons: document.querySelectorAll('.btnElement')[0] ? Array.from(document.querySelectorAll('.btnElement')).map(x => {
                         return {
                             label: x.children[1].value,
                             url: x.children[3].value
                         }
-                    })
+                    }) : null
                 });
             });
         });
