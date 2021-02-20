@@ -84,6 +84,13 @@ window.addEventListener('load', () => {
             });
             document.querySelector('#login').style.display = 'none';
             document.querySelector('#main').style.display = 'block';
+            document.querySelector('#addBtn').addEventListener('click', () => {
+                let btnElement = document.createElement('div');
+                btnElement.setAttribute('class', 'btnElement')
+                btnElement.setAttribute('style', 'border: 1px solid black; border-radius: 3px; margin-left: auto; margin-right: auto;')
+                btnElement.innerHTML = `<div class="description">버튼 텍스트</div><input type="text"><div class="description">버튼 링크</div><input type="text"><button onclick="this.parentElement.remove();" style="display: block; margin-left: auto; margin-right: auto;">버튼 삭제하기</button>`;
+                document.querySelector('#btns').appendChild(btnElement);
+            });
             document.querySelector('#subm').addEventListener('click', () => {
                 if (document.querySelector('#state').value == '') return alert('state 값을 입력해주세요');
                 if (document.querySelector('#details').value == '') return alert('details 값을 입력해주세요');
@@ -91,6 +98,12 @@ window.addEventListener('load', () => {
                 if (document.querySelector('#partyMax').value && parseInt(document.querySelector('#partyMax').value) < 1) return alert('전체 파티 인원은 1 이상이어야 해요');
                 if (document.querySelector('#partySize').value && parseInt(document.querySelector('#partySize').value) < 1) return alert('현재 파티 인원은 1 이상이어야 해요');
                 if (document.querySelector('#joinSecret').value && document.querySelector('#joinSecret').value.length < 2) return alert('참가 비밀 값은 2자리 이상이어야 해요');
+                for (let btn of Array.from(document.querySelectorAll('.btnElement'))) {
+                    if (btn.children[1].value == '') return alert('버튼 텍스트를 입력해주세요');
+                    if (btn.children[3].value == '') return alert('버튼 URL을 입력해주세요');
+                    if (!new RegExp(/^(ftp|http|https):\/\/[^ "]+$/).test(btn.children[3].value)) return alert('정확한 URL을 입력해주세요');
+                }
+                if (Array.from(document.querySelectorAll('.btnElement'))[0] && document.querySelector('#joinSecret').value) return alert('참가 버튼이랑 커스텀 버튼을 동시에 사용할 수 없어요');
                 client.setActivity({
                     state: document.querySelector('#state').value,
                     details: document.querySelector('#details').value,
@@ -101,9 +114,15 @@ window.addEventListener('load', () => {
                     smallImageText: document.querySelector('#smallImageText').value,
                     partyMax: parseInt(document.querySelector('#partyMax').value),
                     partySize: parseInt(document.querySelector('#partySize').value),
-                    joinSecret: document.querySelector('#joinSecret').value
-                })
-            })
+                    joinSecret: document.querySelector('#joinSecret').value,
+                    buttons: Array.from(document.querySelectorAll('.btnElement')).map(x => {
+                        return {
+                            label: x.children[1].value,
+                            url: x.children[3].value
+                        }
+                    })
+                });
+            });
         });
         client.login({ clientId: document.querySelector('#clientId').value }).catch(e => alert(`Error: ${e}`));
     });

@@ -161,3 +161,13 @@ input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+.btnElement {
+    margin: 10px;
+    padding: 10px;
+}
+
+#btns {
+    display: grid;
+    grid-template-columns: repeat(auto);
+}
