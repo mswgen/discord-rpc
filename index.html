@@ -2,10 +2,46 @@
 <html>
     <head>
         <meta charset="UTF-8">
+        <link rel="stylesheet" href="index.css">
         <title>Discord RPC</title>
     </head>
     <body>
-        <label for="clientId">Client ID</label>
-        <input type="text" name="" id="">
+        <div id="login">
+            <div class="title">Discord RPC 연결하기</div>
+            <div class="description">Client ID 입력</div>
+            <input type="text" id="clientId">
+            <button id="connect">연결</button>
+        </div>
+        <div id="main">
+            <div class="title">Rich Presence 설정하기</div>
+            <div class="description">플레이 상태(state)</div>
+            <input type="text" id="state">
+            <div class="description">상세 내용(details)</div>
+            <input type="text" id="details">
+            <div class="description">큰 이미지 이름</div>
+            <input type="text" id="largeImageKey">
+            <div class="description">큰 이미지 설명</div>
+            <input type="text" id="largeImageText">
+            <div class="description">작은 이미지 이름</div>
+            <input type="text" id="smallImageKey">
+            <div class="description">작은 이미지 설명</div>
+            <input type="text" id="smallImageText">
+            <div class="checkContainer">
+                <label for="timestamp" class="check-label">시작 시간 표시</label>
+                <div>
+                    <div class="checkContainer-2" tabindex="-1" id="timestamp-container">
+                        <svg class="checkbox-svg" viewBox="0 0 28 20" preserveAspectRatio="xMinYMid meet" id="timestamp-svg">
+                            <rect fill="white" x="4" y="0" width="20" height="20" rx="10"></rect>
+                            <svg viewBox="0 0 20 20" fill="none">
+                                <path fill="rgba(114, 118, 125, 1)" d="M5.13231 6.72963L6.7233 5.13864L14.855 13.2704L13.264 14.8614L5.13231 6.72963Z"></path>
+                                <path fill="rgba(114, 118, 125, 1)" d="M13.2704 5.13864L14.8614 6.72963L6.72963 14.8614L5.13864 13.2704L13.2704 5.13864Z"></path>
+                            </svg>
+                        </svg>
+                        <input type="checkbox" id="timestamp" tabindex="0">
+                    </div>
+                </div>
+            </div>
+            <button id="subm">확인</button>
+        </div>
     </body>
 </html>

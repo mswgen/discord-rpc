@@ -22,5 +22,5 @@ electron.app.whenReady().then(() => {
     electron.app.on('activate', () => {
         if (electron.BrowserWindow.getAllWindows().length == 0) createWindow();
     });
-    electron.app.on('window-all-closed', electron.app.quit());
+    electron.app.on('window-all-closed', () => electron.app.quit());
 });
