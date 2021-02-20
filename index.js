@@ -105,24 +105,39 @@ window.addEventListener('load', () => {
                     if (!new RegExp(/^(ftp|http|https):\/\/[^ "]+$/).test(btn.children[3].value)) return alert('정확한 URL을 입력해주세요');
                 }
                 if (Array.from(document.querySelectorAll('.btnElement'))[0] && document.querySelector('#joinSecret').value) return alert('참가 버튼이랑 커스텀 버튼을 동시에 사용할 수 없어요');
-                client.setActivity({
-                    state: document.querySelector('#state').value,
-                    details: document.querySelector('#details').value,
-                    startTimestamp: document.querySelector('#timestamp').checked ? new Date() : undefined,
-                    largeImageKey: document.querySelector('#largeImageKey').value,
-                    largeImageText: document.querySelector('#largeImageText').value,
-                    smallImageKey: document.querySelector('#smallImageKey').value,
-                    smallImageText: document.querySelector('#smallImageText').value,
-                    partyMax: parseInt(document.querySelector('#partyMax').value),
-                    partySize: parseInt(document.querySelector('#partySize').value),
-                    joinSecret: document.querySelector('#joinSecret').value,
-                    buttons: document.querySelectorAll('.btnElement')[0] ? Array.from(document.querySelectorAll('.btnElement')).map(x => {
-                        return {
-                            label: x.children[1].value,
-                            url: x.children[3].value
-                        }
-                    }) : null
-                });
+                if (document.querySelector('.btnElement')) {
+                    client.setActivity({
+                        state: document.querySelector('#state').value,
+                        details: document.querySelector('#details').value,
+                        startTimestamp: document.querySelector('#timestamp').checked ? new Date() : undefined,
+                        largeImageKey: document.querySelector('#largeImageKey').value,
+                        largeImageText: document.querySelector('#largeImageText').value,
+                        smallImageKey: document.querySelector('#smallImageKey').value,
+                        smallImageText: document.querySelector('#smallImageText').value,
+                        partyMax: parseInt(document.querySelector('#partyMax').value),
+                        partySize: parseInt(document.querySelector('#partySize').value),
+                        joinSecret: document.querySelector('#joinSecret').value,
+                        buttons: Array.from(document.querySelectorAll('.btnElement')).map(x => {
+                            return {
+                                label: x.children[1].value,
+                                url: x.children[3].value
+                            }
+                        })
+                    });
+                } else {
+                    client.setActivity({
+                        state: document.querySelector('#state').value,
+                        details: document.querySelector('#details').value,
+                        startTimestamp: document.querySelector('#timestamp').checked ? new Date() : undefined,
+                        largeImageKey: document.querySelector('#largeImageKey').value,
+                        largeImageText: document.querySelector('#largeImageText').value,
+                        smallImageKey: document.querySelector('#smallImageKey').value,
+                        smallImageText: document.querySelector('#smallImageText').value,
+                        partyMax: parseInt(document.querySelector('#partyMax').value),
+                        partySize: parseInt(document.querySelector('#partySize').value),
+                        joinSecret: document.querySelector('#joinSecret').value
+                    });
+                }
             });
         });
         client.login({ clientId: document.querySelector('#clientId').value }).catch(e => alert(`Error: ${e}`));
