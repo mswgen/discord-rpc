@@ -1,0 +1,1249 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <!-- http://wixtoolset.org/documentation/manual/v3/xsd/wix/product.html -->
+  <Product Id="DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1" 
+           UpgradeCode="7edc6990-58a9-4e1f-8b4f-0976d433cb4e"
+           Name = "Discord RPC (Machine - MSI)"
+           Version="1.0.0.0"
+           Manufacturer="Team int"
+           Language="1042">
+    <!-- Only run this installer on Windows 7 or up (or if it"s already installed, I guess) -->
+    <!-- <Condition Message="This application is only supported on Windows 7 or higher.">
+      <![CDATA[Installed OR (VersionNT >= 601)]]>
+    </Condition> -->
+    <!-- http://wixtoolset.org/documentation/manual/v3/xsd/wix/package.html -->
+    <Package InstallerVersion="405"
+             Compressed="yes"
+             Comments="Windows Installer Package"
+             Platform="x86"/>
+    <!-- Don't allow downgrades -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A later version of this product is already installed. Setup will now exit."/>
+    <!-- This will hide our Uninstall entry in Apps & Features. We doing this so
+    we can write our own which we can better control. -->
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+    <!-- While the MSI package is hidden in Apps & Features, it can still be queried
+    via PowerShell and other means. To differentiate we give the public entry a slightly
+    different name to make admins life easier.  -->
+    <Property Id="VisibleProductName" Value="Discord RPC (Machine)" />
+    <!-- Signals Single Package Authoring. This pacakge can pe installed perMachine
+    or perUser. The mode is determined by the property below. -->
+    <Property Id="ALLUSERS" Secure="yes" Value="2" />
+    <!-- Tells the package to install perUser or perMachine. In case of perUser, all
+    files will be redirected to the user profile and all registry entries to HKCU. -->
+    <Property Id="MSIINSTALLPERUSER" Secure="yes" Value="0" />
+    <!-- Overides the default install mode. It solves a problem where
+    individual packaged files that have the same version as in previous
+    installed App version will be deleted if the files are in use during
+    this upgrade. Unfortunately this causes an ICE 40 warning during linking. -->
+    <Property Id="REINSTALLMODE" Value="emus" />
+    <!-- Overrides the default reboot behavior if files are in use during the upgrade.
+     This way no unpxecpted reboot will happpen.-->
+    <Property Id="REBOOT" Value="ReallySuppress" />
+    <!-- A property that holds the intall path and is needed to delete all files on
+    uninstall, even if they are not wriiten as part of this MSI. The value comes from a 
+    registry we set on install.-->
+    <Property Id="INSTALLLEVEL" Value="2" />
+    <!-- Allows to customize the Windows user group that gets access rights on
+    the install folder in cas the auto-updater is installed. User that run the App
+    must be part of that user group to be able to auto-update. -->
+    <Property Id="UPDATERUSERGROUP" Value="Users" />
+    <!-- A property to define whether the auto-updater is enabled when the
+    feature gets installed. This way the update can be installed but also be disabled
+    by overwriting the default value.  -->
+    <Property Id="AUTOUPDATEENABLED" Value="1" />
+    <!-- Necessary registry search to find the install path which is used by the
+    PurgeOnUninstall action. Since this package can be installed perUser or perMachine,
+    we have to look in both places. First successful search wins. -->
+    <Property Id="INSTALLPATH">
+      <RegistrySearch Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq"
+                      Root="HKCU" 
+                      Type="raw"
+                      Id="INSTALLPATH_REGSEARCH_HKCU"
+                      Name="InstallPath"
+                      Win64="no"/>
+      <RegistrySearch Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq"
+                      Root="HKLM" 
+                      Type="raw"
+                      Id="INSTALLPATH_REGSEARCH_HKLM"
+                      Name="InstallPath"
+                      Win64="no"/>
+    </Property>
+    <!-- Lets change the product name depending on the perUser installMode. 
+    This way the user and admins can see in which scope the MSI was installed. -->
+    <SetProperty Action="SetVisibleProductName" Id="VisibleProductName" Sequence="both" Before="AppSearch"  Value="Discord RPC (User)">
+      <![CDATA[MSIINSTALLPERUSER = "1"]]>
+    </SetProperty>
+    <!-- Again we give thee MSI generaten entry a slightly different name to help 
+    differentiate between the public one and the invisible one. -->
+    <SetProperty Action="SetProductName" Id="ProductName" Sequence="both" Before="AppSearch"  Value="Discord RPC (User - MSI)">
+      <![CDATA[MSIINSTALLPERUSER = "1"]]>
+    </SetProperty>
+
+    <Media Id="1" Cabinet="product.cab" EmbedCab="yes"/>
+
+    <UI Id="UserInterface">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WixUI_Mode" Value="FeatureTree" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg">NOT Installed</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1">Installed</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2">NOT Installed</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="1">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">Installed AND PATCH</Publish>
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="ChangeButton" Event="NewDialog" Value="CustomizeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+    </UI>
+    <UIRef Id="WixUI_Common" />
+
+
+    <!-- Step 2: Add files and directories -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+       <!-- Installation files to %PROGRAMFILES% -->
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="APPLICATIONROOTDIRECTORY" Name="Discord RPC">
+          <Directory Id="__6054d8da_f021_4686_a552_642e99945c77" Name="app-1.0.0">
+            <Directory Id="_locales_dd4cf805_59ce_446d_bc65_dca7aa6544dc" Name="locales">
+              <Component Id="_locales_am.pak_9c45c587_d1b9_4ae9_9f80_6492893b43e8" Guid="f1c4ab13-e23d-4de6-9fa4-f2f2cf48c462" Win64="no">
+                <File Name="am.pak" Id="_locales_am.pak_9c45c587_d1b9_4ae9_9f80_6492893b43e8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\am.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ar.pak_46340ee5_713d_4453_90b0_8360619d1dbb" Guid="1db5e2c0-a2ea-49e1-805d-6cb473798a7b" Win64="no">
+                <File Name="ar.pak" Id="_locales_ar.pak_46340ee5_713d_4453_90b0_8360619d1dbb" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ar.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_bg.pak_333931a8_86f6_4315_ba9d_f272a45e4856" Guid="1eae874c-9607-495d-90ef-6aeff9dcb48b" Win64="no">
+                <File Name="bg.pak" Id="_locales_bg.pak_333931a8_86f6_4315_ba9d_f272a45e4856" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\bg.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_bn.pak_7349189d_5965_4e79_acd2_26b3ae1fc7e3" Guid="92bec7a2-5b6c-4dbb-962b-a6d10bd7f02d" Win64="no">
+                <File Name="bn.pak" Id="_locales_bn.pak_7349189d_5965_4e79_acd2_26b3ae1fc7e3" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\bn.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ca.pak_19c3e8ed_9b23_421a_a9c4_29db0c99681c" Guid="c9aea5e0-adcc-4678-ba39-837fe4d9d6c3" Win64="no">
+                <File Name="ca.pak" Id="_locales_ca.pak_19c3e8ed_9b23_421a_a9c4_29db0c99681c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ca.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_cs.pak_c56b8610_0e89_4f40_99a3_ea72837697a2" Guid="c50ec6b2-d325-4d8d-9eef-bf57a4ab01c8" Win64="no">
+                <File Name="cs.pak" Id="_locales_cs.pak_c56b8610_0e89_4f40_99a3_ea72837697a2" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\cs.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_da.pak_4f3f49c0_77ef_4f67_b737_5b5a917a17b8" Guid="35499473-d7f7-492f-9e62-c043851e9db5" Win64="no">
+                <File Name="da.pak" Id="_locales_da.pak_4f3f49c0_77ef_4f67_b737_5b5a917a17b8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\da.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_de.pak_cac324f1_38e3_4859_893d_519321a94b25" Guid="b7dab726-fdf5-42d7-b47f-da8518a6c862" Win64="no">
+                <File Name="de.pak" Id="_locales_de.pak_cac324f1_38e3_4859_893d_519321a94b25" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\de.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_el.pak_baeb5f15_f8d0_468c_9a7a_8a83a2feaa37" Guid="24a1ac8a-3f38-42e2-83b0-10a96bf3081f" Win64="no">
+                <File Name="el.pak" Id="_locales_el.pak_baeb5f15_f8d0_468c_9a7a_8a83a2feaa37" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\el.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_en_GB.pak_59d4f9d2_0af7_4890_a3b1_ce049fb8767d" Guid="9edcff39-90fd-4356-aa78-2911575cfdc8" Win64="no">
+                <File Name="en-GB.pak" Id="_locales_en_GB.pak_59d4f9d2_0af7_4890_a3b1_ce049fb8767d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\en-GB.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_en_US.pak_92a20d33_655a_4122_b9b0_4d1a00782ac1" Guid="e01d547f-f449-4b71-bed4-d858b6df6d78" Win64="no">
+                <File Name="en-US.pak" Id="_locales_en_US.pak_92a20d33_655a_4122_b9b0_4d1a00782ac1" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\en-US.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_es_419.pak_1b046b0f_3826_446b_9b88_0cc758cce495" Guid="7427ef1e-d892-43dd-b50f-f5cc129a75e4" Win64="no">
+                <File Name="es-419.pak" Id="_locales_es_419.pak_1b046b0f_3826_446b_9b88_0cc758cce495" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\es-419.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_es.pak_d4010842_7f6b_407e_9132_c9912023fb6f" Guid="d362e9f8-0409-4a95-948c-173956e3f31f" Win64="no">
+                <File Name="es.pak" Id="_locales_es.pak_d4010842_7f6b_407e_9132_c9912023fb6f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\es.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_et.pak_edbf8dd9_20be_4f6c_8584_36059111e01b" Guid="793d0c75-bf11-4312-b08d-3ece2f6a140f" Win64="no">
+                <File Name="et.pak" Id="_locales_et.pak_edbf8dd9_20be_4f6c_8584_36059111e01b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\et.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fa.pak_fb57252a_e10f_460f_aa58_704ab9ed046d" Guid="e2a33012-070c-469b-8dd6-2c64c7c436aa" Win64="no">
+                <File Name="fa.pak" Id="_locales_fa.pak_fb57252a_e10f_460f_aa58_704ab9ed046d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\fa.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fi.pak_c9f493d3_995d_465e_bd46_0730dfb030ff" Guid="c37b3fcb-0216-4184-8c2d-e9d50794771f" Win64="no">
+                <File Name="fi.pak" Id="_locales_fi.pak_c9f493d3_995d_465e_bd46_0730dfb030ff" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\fi.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fil.pak_8e5299f7_d60e_44e3_b146_eb42bb85bf7f" Guid="8f35718e-25fd-416c-bd81-e0176e3929f3" Win64="no">
+                <File Name="fil.pak" Id="_locales_fil.pak_8e5299f7_d60e_44e3_b146_eb42bb85bf7f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\fil.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fr.pak_aa473243_76e3_4abb_bc7c_5b7ace3f79ed" Guid="12827e05-25cc-4f49-a847-fd964b1d692a" Win64="no">
+                <File Name="fr.pak" Id="_locales_fr.pak_aa473243_76e3_4abb_bc7c_5b7ace3f79ed" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\fr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_gu.pak_6d453831_527f_4677_a5e2_0e036045ebfe" Guid="515a087c-aec0-460f-8133-9e26b1ce800d" Win64="no">
+                <File Name="gu.pak" Id="_locales_gu.pak_6d453831_527f_4677_a5e2_0e036045ebfe" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\gu.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_he.pak_f98b4584_77c3_458d_ac17_ab259804174c" Guid="d94698db-dfb1-4ec5-8cbe-14d348395ac5" Win64="no">
+                <File Name="he.pak" Id="_locales_he.pak_f98b4584_77c3_458d_ac17_ab259804174c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\he.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_hi.pak_a8d0860c_d398_431a_b6e0_a4ee8dd3db18" Guid="b517169d-6dd9-49e7-b7b7-42172fce657a" Win64="no">
+                <File Name="hi.pak" Id="_locales_hi.pak_a8d0860c_d398_431a_b6e0_a4ee8dd3db18" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\hi.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_hr.pak_ea4da7c9_31c6_4ab2_8656_1da76299529d" Guid="9cbdd93f-7a98-408b-9567-31ee8194e82e" Win64="no">
+                <File Name="hr.pak" Id="_locales_hr.pak_ea4da7c9_31c6_4ab2_8656_1da76299529d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\hr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_hu.pak_2f88841a_faa5_4f54_81b3_e64832856208" Guid="bb709278-49f5-4154-b7e9-9734e8decebf" Win64="no">
+                <File Name="hu.pak" Id="_locales_hu.pak_2f88841a_faa5_4f54_81b3_e64832856208" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\hu.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_id.pak_dee0094a_7bb7_404f_b24e_875ac69423f9" Guid="bd4fb011-9c1f-418f-870a-638d7e993a03" Win64="no">
+                <File Name="id.pak" Id="_locales_id.pak_dee0094a_7bb7_404f_b24e_875ac69423f9" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\id.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_it.pak_0e2e19ae_907f_4dea_b1b9_1e8243082693" Guid="bdea36b5-9ab7-4623-a637-57b6dfdb66b1" Win64="no">
+                <File Name="it.pak" Id="_locales_it.pak_0e2e19ae_907f_4dea_b1b9_1e8243082693" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\it.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ja.pak_633cbc57_e535_4dd4_9ca8_a7879abeb83e" Guid="d99051c1-a7f6-47f5-8ca9-e6e37f7b099d" Win64="no">
+                <File Name="ja.pak" Id="_locales_ja.pak_633cbc57_e535_4dd4_9ca8_a7879abeb83e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ja.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_kn.pak_e1c23c48_a172_43dd_8fe1_80d0f79849c7" Guid="5c00e8a5-80df-4e4c-854a-5b75f187c0ef" Win64="no">
+                <File Name="kn.pak" Id="_locales_kn.pak_e1c23c48_a172_43dd_8fe1_80d0f79849c7" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\kn.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ko.pak_8491a008_2f6f_4c46_9102_d515767f86af" Guid="3e864373-95e1-4cc3-a140-9a4c4497c04f" Win64="no">
+                <File Name="ko.pak" Id="_locales_ko.pak_8491a008_2f6f_4c46_9102_d515767f86af" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ko.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_lt.pak_c13e5a42_7138_4072_a9e6_fb038af44397" Guid="7802ddd3-b072-43cd-9d91-2a480e6e5671" Win64="no">
+                <File Name="lt.pak" Id="_locales_lt.pak_c13e5a42_7138_4072_a9e6_fb038af44397" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\lt.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_lv.pak_4e41722f_44e0_49cb_86cc_ffb78e36f71e" Guid="86893e2d-a23e-4481-baf2-8bb3a20bcf63" Win64="no">
+                <File Name="lv.pak" Id="_locales_lv.pak_4e41722f_44e0_49cb_86cc_ffb78e36f71e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\lv.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ml.pak_a67e2662_3b53_41a4_ae47_e74c58f0f362" Guid="1191b946-9c1c-4bf7-80bb-843dfa73c224" Win64="no">
+                <File Name="ml.pak" Id="_locales_ml.pak_a67e2662_3b53_41a4_ae47_e74c58f0f362" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ml.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_mr.pak_d9e1a821_dd67_4fb6_a000_c84aa2850f1e" Guid="df68769c-a7c5-4154-be2b-a1b77cbf9b01" Win64="no">
+                <File Name="mr.pak" Id="_locales_mr.pak_d9e1a821_dd67_4fb6_a000_c84aa2850f1e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\mr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ms.pak_2485579c_24bd_42c1_9c72_530a9957cf8b" Guid="f444f83b-3e4e-4be3-a18f-c15a82cd88fc" Win64="no">
+                <File Name="ms.pak" Id="_locales_ms.pak_2485579c_24bd_42c1_9c72_530a9957cf8b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ms.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_nb.pak_1f46f470_8264_4519_a589_0d86e8c8858b" Guid="6cbd7750-9be3-4fc3-bd90-f742b572682b" Win64="no">
+                <File Name="nb.pak" Id="_locales_nb.pak_1f46f470_8264_4519_a589_0d86e8c8858b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\nb.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_nl.pak_9070abdd_235f_46a9_bc64_00af6a137b8f" Guid="dd95978c-2469-47ee-b9f9-aeb3cba636f7" Win64="no">
+                <File Name="nl.pak" Id="_locales_nl.pak_9070abdd_235f_46a9_bc64_00af6a137b8f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\nl.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_pl.pak_0e0db0d8_ef4c_4b3f_a7b1_3035786a4a14" Guid="471304d0-d923-42f0-aed5-e217f6dbd582" Win64="no">
+                <File Name="pl.pak" Id="_locales_pl.pak_0e0db0d8_ef4c_4b3f_a7b1_3035786a4a14" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\pl.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_pt_BR.pak_a4b72a71_be6c_4893_9cb2_d6715162a068" Guid="2f1cb82a-d7e3-496f-9d8c-9ee38cf677c7" Win64="no">
+                <File Name="pt-BR.pak" Id="_locales_pt_BR.pak_a4b72a71_be6c_4893_9cb2_d6715162a068" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\pt-BR.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_pt_PT.pak_03e705a2_742f_434f_aa6b_6ddd7849c59a" Guid="4ecf7e59-4a05-49a5-9852-70d84808bc40" Win64="no">
+                <File Name="pt-PT.pak" Id="_locales_pt_PT.pak_03e705a2_742f_434f_aa6b_6ddd7849c59a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\pt-PT.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ro.pak_52c8326d_6894_4809_936c_8d9261dfeca2" Guid="74000365-1251-4f95-b374-9e0f1f5d5ff6" Win64="no">
+                <File Name="ro.pak" Id="_locales_ro.pak_52c8326d_6894_4809_936c_8d9261dfeca2" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ro.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ru.pak_fb2a0363_4b71_44f5_aada_e13b6686fbb7" Guid="5bc27223-88c7-4d1d-a6c1-8409a8244d5f" Win64="no">
+                <File Name="ru.pak" Id="_locales_ru.pak_fb2a0363_4b71_44f5_aada_e13b6686fbb7" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ru.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sk.pak_afbf779e_a92c_4c34_aecb_e7c857885583" Guid="c4986727-e2c2-40a7-83bb-21cfa427e4ce" Win64="no">
+                <File Name="sk.pak" Id="_locales_sk.pak_afbf779e_a92c_4c34_aecb_e7c857885583" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\sk.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sl.pak_ce29b1b4_2b94_4d5b_86f0_c7b9171958ee" Guid="f79314e3-7fe7-4dae-983a-fb92dd5e538f" Win64="no">
+                <File Name="sl.pak" Id="_locales_sl.pak_ce29b1b4_2b94_4d5b_86f0_c7b9171958ee" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\sl.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sr.pak_2345af30_ff28_49b1_b8a8_8cac16c8278b" Guid="e65c995b-a4b0-43b8-9256-5d3a6ac9a55d" Win64="no">
+                <File Name="sr.pak" Id="_locales_sr.pak_2345af30_ff28_49b1_b8a8_8cac16c8278b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\sr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sv.pak_6309aa88_f7da_4ffc_81a6_0d113d34e231" Guid="4cacaa82-a42d-4564-8743-402be562937f" Win64="no">
+                <File Name="sv.pak" Id="_locales_sv.pak_6309aa88_f7da_4ffc_81a6_0d113d34e231" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\sv.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sw.pak_5232eacc_5789_4029_ad94_7b15347835b2" Guid="8ad14458-eaca-452d-9964-e68eb0398f21" Win64="no">
+                <File Name="sw.pak" Id="_locales_sw.pak_5232eacc_5789_4029_ad94_7b15347835b2" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\sw.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ta.pak_8c82068d_a41c_4ca3_af4e_dfa7ac02a9ec" Guid="e7329f7f-df68-4925-ba1f-78f67d421f1e" Win64="no">
+                <File Name="ta.pak" Id="_locales_ta.pak_8c82068d_a41c_4ca3_af4e_dfa7ac02a9ec" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\ta.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_te.pak_f0a3855e_2893_410d_b990_53feddf89497" Guid="8b53bd8c-c0a7-4dc4-bcff-99abebcd4fef" Win64="no">
+                <File Name="te.pak" Id="_locales_te.pak_f0a3855e_2893_410d_b990_53feddf89497" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\te.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_th.pak_26deafb0_cf3d_412e_800d_22107a14fda2" Guid="8a099ad3-5ceb-4181-a987-7002240b4b55" Win64="no">
+                <File Name="th.pak" Id="_locales_th.pak_26deafb0_cf3d_412e_800d_22107a14fda2" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\th.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_tr.pak_0b9f658d_188a_49d7_ae45_702843e7aa7e" Guid="0384329b-6a03-45c1-bb53-1a65972f44a5" Win64="no">
+                <File Name="tr.pak" Id="_locales_tr.pak_0b9f658d_188a_49d7_ae45_702843e7aa7e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\tr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_uk.pak_a1f12c12_d018_42b0_ab8f_e8a3f98b659e" Guid="2e2dbf0c-54c0-4ffc-a7a7-3ed7cf52547f" Win64="no">
+                <File Name="uk.pak" Id="_locales_uk.pak_a1f12c12_d018_42b0_ab8f_e8a3f98b659e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\uk.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_vi.pak_d903e88a_8a42_40de_a748_0d91eda75632" Guid="edb293e9-f984-4651-ad20-3ff1c15d99e8" Win64="no">
+                <File Name="vi.pak" Id="_locales_vi.pak_d903e88a_8a42_40de_a748_0d91eda75632" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\vi.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_zh_CN.pak_256c05b7_2b84_40f2_aeb4_d9e2e89015cc" Guid="d396ea17-85bd-4f58-889f-8e21b5df8f89" Win64="no">
+                <File Name="zh-CN.pak" Id="_locales_zh_CN.pak_256c05b7_2b84_40f2_aeb4_d9e2e89015cc" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\zh-CN.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_zh_TW.pak_6a308578_85d0_4207_b4d9_81b0aed4e140" Guid="1780c71c-cb43-432f-84df-b7ae6f98f921" Win64="no">
+                <File Name="zh-TW.pak" Id="_locales_zh_TW.pak_6a308578_85d0_4207_b4d9_81b0aed4e140" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\locales\zh-TW.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+            </Directory>
+            <Directory Id="_resources_a7022733_9549_4042_9e73_5b1ac4667596" Name="resources">
+              <Directory Id="_resources_app_e3d0a370_3258_4bc4_8b90_a86f0cc7683b" Name="app">
+                <Directory Id="_resources_app_.github_0301db38_d694_414e_b68f_d0ee757d03e9" Name=".github">
+                  <Directory Id="_resources_app_.github_workflows_6fcc994d_470d_4ae6_94a5_b5522f8e2c62" Name="workflows">
+                    <Component Id="_build.yml_7ef61204_34b9_4c19_ac1c_88d673322c8d" Guid="77485bf6-c0b8-4348-92b7-b7bf1ae880d8" Win64="no">
+                      <File Name="build.yml" Id="_build.yml_7ef61204_34b9_4c19_ac1c_88d673322c8d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\.github\workflows\build.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+                </Directory>
+
+                <Directory Id="_resources_app_node_modules_88baa6b9_1ee9_41af_941c_9e842b19a220" Name="node_modules">
+                  <Directory Id="__bitdisaster_e6fcfb18_8003_4090_8344_8b9cd8d9f35a" Name="@bitdisaster">
+
+                  </Directory>
+                  <Directory Id="__electron_1866ad8e_7eec_48ca_83e2_7d6c27a519be" Name="@electron">
+
+                  </Directory>
+                  <Directory Id="__electron_forge_fc58e898_d57c_4f29_b8dc_737daa852b06" Name="@electron-forge">
+
+                  </Directory>
+                  <Directory Id="_resources_app_node_modules__malept_f8078941_aa5e_4877_9a88_e7c11680bb79" Name="@malept">
+
+                  </Directory>
+                  <Directory Id="__sindresorhus_828aa8b8_2e0a_41e8_9b44_fb2924aa3800" Name="@sindresorhus">
+
+                  </Directory>
+                  <Directory Id="__szmarczak_31482367_fa8e_4504_b376_0e42082ad5f2" Name="@szmarczak">
+
+                  </Directory>
+                  <Directory Id="_resources_app_node_modules__types_0f176b0a_9fe6_4592_8981_5381916775c4" Name="@types">
+
+                  </Directory>
+                  <Directory Id="_resources_app_node_modules_debug_519a7025_4d7b_4c89_a728_9e968a01f808" Name="debug">
+                    <Directory Id="_src_6ad0afeb_c562_49b1_841f_ae138cc10cbd" Name="src">
+                      <Component Id="_browser.js_d98c841e_7214_4528_98a6_9c3cc7205278" Guid="a21ee52d-0da6-4bb4-b41e-15c19f864a0e" Win64="no">
+                        <File Name="browser.js" Id="_browser.js_d98c841e_7214_4528_98a6_9c3cc7205278" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\src\browser.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_debug.js_db33b790_edee_443c_ac91_e3dff2ae0379" Guid="e5fe04eb-eef0-44cb-9d97-4b40b09ef550" Win64="no">
+                        <File Name="debug.js" Id="_debug.js_db33b790_edee_443c_ac91_e3dff2ae0379" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\src\debug.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_index.js_397c7ee6_5ce6_4a9a_9dd0_529440bb7ef2" Guid="75e15b08-2f3c-4b97-b83c-caadce9073f8" Win64="no">
+                        <File Name="index.js" Id="_index.js_397c7ee6_5ce6_4a9a_9dd0_529440bb7ef2" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\src\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_inspector_log.js_735e54ef_6866_4aa4_a07e_b3ca98592fce" Guid="a3fb9c86-a388-4f23-95f5-084d79556217" Win64="no">
+                        <File Name="inspector-log.js" Id="_inspector_log.js_735e54ef_6866_4aa4_a07e_b3ca98592fce" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\src\inspector-log.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_node.js_7db6664b_81fb_4c3c_b788_6877b1018ee0" Guid="c3b48bb1-efeb-46db-944e-371cc6870262" Win64="no">
+                        <File Name="node.js" Id="_node.js_7db6664b_81fb_4c3c_b788_6877b1018ee0" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\src\node.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_.coveralls.yml_382be2be_4c4c_4e0a_b2f8_ca192660045b" Guid="9d495877-4f77-4c05-9764-01ef0ae05bab" Win64="no">
+                      <File Name=".coveralls.yml" Id="_.coveralls.yml_382be2be_4c4c_4e0a_b2f8_ca192660045b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\.coveralls.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_.eslintrc_14a48722_7b7d_4aa3_bb17_9118be4f964f" Guid="7942fac3-4028-4ee6-8f13-937a53b2ffc0" Win64="no">
+                      <File Name=".eslintrc" Id="_.eslintrc_14a48722_7b7d_4aa3_bb17_9118be4f964f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\.eslintrc" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_.npmignore_0a91f4e4_c24c_4887_9030_452227111bab" Guid="2751604e-ee5e-4ef5-b701-97a222528b3d" Win64="no">
+                      <File Name=".npmignore" Id="_.npmignore_0a91f4e4_c24c_4887_9030_452227111bab" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\.npmignore" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_.travis.yml_d9e07513_2cb5_461d_b0c0_9e4eb4435496" Guid="193ba915-5e54-4946-9550-e11b6b05ead0" Win64="no">
+                      <File Name=".travis.yml" Id="_.travis.yml_d9e07513_2cb5_461d_b0c0_9e4eb4435496" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\.travis.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_CHANGELOG.md_ae6bdbf4_ea95_49d7_a726_b2607f360b89" Guid="a4d4318e-3aaa-4315-97b5-0d4f18d02436" Win64="no">
+                      <File Name="CHANGELOG.md" Id="_CHANGELOG.md_ae6bdbf4_ea95_49d7_a726_b2607f360b89" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\CHANGELOG.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_LICENSE_3bb72a74_07e2_4819_915d_760f9af44825" Guid="ba7c20bd-3795-479e-8f58-40af8dc58602" Win64="no">
+                      <File Name="LICENSE" Id="_LICENSE_3bb72a74_07e2_4819_915d_760f9af44825" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\LICENSE" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_Makefile_0ae6c62c_7839_4632_b103_0dc7b3ea48cd" Guid="a62f0742-78dc-4c77-bfc7-b230592738ae" Win64="no">
+                      <File Name="Makefile" Id="_Makefile_0ae6c62c_7839_4632_b103_0dc7b3ea48cd" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\Makefile" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_README.md_a9e27627_3346_4738_b012_d148fac38fa6" Guid="2632f982-425f-45d5-9ac6-b5a3b93f3a68" Win64="no">
+                      <File Name="README.md" Id="_README.md_a9e27627_3346_4738_b012_d148fac38fa6" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_component.json_7ba5b048_d292_433c_a91f_895bc75a429a" Guid="86864df9-3145-46e9-9144-45c7f7f0aee1" Win64="no">
+                      <File Name="component.json" Id="_component.json_7ba5b048_d292_433c_a91f_895bc75a429a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\component.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_karma.conf.js_5dfa550e_5288_431d_815f_ec69fe4346ac" Guid="8b158b5e-2327-4619-ac33-a6c1338b61fb" Win64="no">
+                      <File Name="karma.conf.js" Id="_karma.conf.js_5dfa550e_5288_431d_815f_ec69fe4346ac" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\karma.conf.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_node.js_66924c35_8a44_4ba5_adb2_b9e3d9de2e96" Guid="9e84f716-0037-4849-be79-76ba37ee7373" Win64="no">
+                      <File Name="node.js" Id="_node.js_66924c35_8a44_4ba5_adb2_b9e3d9de2e96" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\node.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_c401a6d8_72bb_4ef1_ba4b_88f1386e2fd1" Guid="e02ad826-1c7e-4c1c-82ae-92da88cd938b" Win64="no">
+                      <File Name="package.json" Id="_package.json_c401a6d8_72bb_4ef1_ba4b_88f1386e2fd1" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\debug\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_discord_rpc_f182b82e_2f38_430b_8067_62d790fc1360" Name="discord-rpc">
+                    <Directory Id="_.github_fac21060_5472_46da_9c4b_893ffd2822df" Name=".github">
+                      <Directory Id="_workflows_68fa35a2_82a2_4743_a998_2c4992182d6f" Name="workflows">
+                        <Component Id="_docs.yml_d464f815_90eb_4b77_8c1d_5cd0f30a1446" Guid="436ec1a0-c26b-4bc8-86e2-1f33928e546c" Win64="no">
+                          <File Name="docs.yml" Id="_docs.yml_d464f815_90eb_4b77_8c1d_5cd0f30a1446" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\.github\workflows\docs.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                      </Directory>                      <Component Id="_FUNDING.yml_3201c196_4cf3_4729_853f_8e16e5ca2c5c" Guid="cee29ddb-139f-4a22-a26d-9be680736282" Win64="no">
+                        <File Name="FUNDING.yml" Id="_FUNDING.yml_3201c196_4cf3_4729_853f_8e16e5ca2c5c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\.github\FUNDING.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>
+
+                    <Directory Id="_docs_out_d77f4719_467e_4dc0_9d66_a8cd3ef60300" Name="docs-out">
+                      <Component Id="_master.json_c64ef368_e665_4bc0_823d_571e0fa72ad8" Guid="eb193073-d657-4f60-a0c1-81819cd866f5" Win64="no">
+                        <File Name="master.json" Id="_master.json_c64ef368_e665_4bc0_823d_571e0fa72ad8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\docs-out\master.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>
+                    <Directory Id="_src_f79cf85d_9565_4e86_8445_409b1dbefb08" Name="src">
+                      <Directory Id="_transports_730476d2_bf0b_46f8_b2ed_572990b673bb" Name="transports">
+                        <Component Id="_index.js_78ad82cc_1fba_418c_9b01_85ed189884e7" Guid="7af3331d-bedd-48a5-baf3-3f344337118f" Win64="no">
+                          <File Name="index.js" Id="_index.js_78ad82cc_1fba_418c_9b01_85ed189884e7" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\src\transports\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_ipc.js_e434ed81_359e_407f_ac51_bf6b204277d8" Guid="f28e447a-2db9-4825-bd5a-ffa4c52af0d3" Win64="no">
+                          <File Name="ipc.js" Id="_ipc.js_e434ed81_359e_407f_ac51_bf6b204277d8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\src\transports\ipc.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_websocket.js_426c92ef_c597_4a30_b776_ac46919cc2de" Guid="1727a9b2-775a-4032-a570-6a7f73267246" Win64="no">
+                          <File Name="websocket.js" Id="_websocket.js_426c92ef_c597_4a30_b776_ac46919cc2de" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\src\transports\websocket.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                      </Directory>                      <Component Id="_client.js_214f6da7_3ff9_453e_b432_785b3d72ee68" Guid="46ff7a7b-a823-4965-9594-9171c9110d4b" Win64="no">
+                        <File Name="client.js" Id="_client.js_214f6da7_3ff9_453e_b432_785b3d72ee68" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\src\client.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_constants.js_c2fea04e_7460_4ec5_bcf8_942abe44ccc2" Guid="d0cb33e0-7e1f-4acf-a50d-40f3d88857e9" Win64="no">
+                        <File Name="constants.js" Id="_constants.js_c2fea04e_7460_4ec5_bcf8_942abe44ccc2" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\src\constants.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_index.js_3164d5b8_1ca9_4400_a94d_1f5d4ad11aaf" Guid="04af7b86-3be1-41c3-aa9c-92a3aa468af7" Win64="no">
+                        <File Name="index.js" Id="_index.js_3164d5b8_1ca9_4400_a94d_1f5d4ad11aaf" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\src\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_util.js_5668bc8a_d273_41e3_87d2_a7e89a39ad70" Guid="ee33ad97-93d6-4cc0-9f5e-1a8c12681b5a" Win64="no">
+                        <File Name="util.js" Id="_util.js_5668bc8a_d273_41e3_87d2_a7e89a39ad70" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\src\util.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>
+                    <Component Id="_.eslintrc.js_23fd9631_46d7_4397_b1b5_54fc83ff09f7" Guid="e0898739-277a-4c05-8a98-2024f50b550a" Win64="no">
+                      <File Name=".eslintrc.js" Id="_.eslintrc.js_23fd9631_46d7_4397_b1b5_54fc83ff09f7" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\.eslintrc.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_README.md_171d9c0e_b641_4df4_b0b3_3a6dd4336a15" Guid="b395ffed-56c3-4fd8-bb21-2c8c45874a60" Win64="no">
+                      <File Name="README.md" Id="_README.md_171d9c0e_b641_4df4_b0b3_3a6dd4336a15" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_browser.js_d322213e_b331_429b_a28b_35ceef65fc9a" Guid="229104d1-3dad-4a38-9853-ffabebe9b5b2" Win64="no">
+                      <File Name="browser.js" Id="_browser.js_d322213e_b331_429b_a28b_35ceef65fc9a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\browser.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_a67f0559_19a5_480f_b326_d31df403db6c" Guid="4dd1d980-117d-4e5b-8241-6f3d6a408015" Win64="no">
+                      <File Name="package.json" Id="_package.json_a67f0559_19a5_480f_b326_d31df403db6c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\discord-rpc\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_electron_is_dev_2735408b_7cbe_4cac_8397_2311b603a288" Name="electron-is-dev">
+                    <Component Id="_index.js_331d90ff_6f04_479f_96e3_4cdb848c3c7b" Guid="b461378c-c380-4aa8-9bf1-2087237a6551" Win64="no">
+                      <File Name="index.js" Id="_index.js_331d90ff_6f04_479f_96e3_4cdb848c3c7b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-is-dev\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_license_8855e095_2194_4359_adb5_2bc4882f1601" Guid="4842b092-8f99-46dc-89a9-5f66b987ba1e" Win64="no">
+                      <File Name="license" Id="_license_8855e095_2194_4359_adb5_2bc4882f1601" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-is-dev\license" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_bc39563f_8319_4dcb_812a_069fca181bd9" Guid="de0596c8-0ca9-439e-b805-be7eb025c43e" Win64="no">
+                      <File Name="package.json" Id="_package.json_bc39563f_8319_4dcb_812a_069fca181bd9" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-is-dev\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_readme.md_675d596b_e250_4057_8251_3b6a45492ef6" Guid="f2094761-1120-4c01-98e7-d331a4cf332a" Win64="no">
+                      <File Name="readme.md" Id="_readme.md_675d596b_e250_4057_8251_3b6a45492ef6" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-is-dev\readme.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+                  <Directory Id="_electron_squirrel_startup_d488bc85_fd6d_43d3_a66d_1805bfbc9f6d" Name="electron-squirrel-startup">
+                    <Directory Id="_test_ee2eba50_f7a2_470e_8ed7_8073f2bb62b1" Name="test">
+                      <Component Id="_index.test.js_75bf73e5_c4ce_4217_8313_a9e91c8f9097" Guid="30251389-47ca-4628-b3d4-c5da44f1f2f8" Win64="no">
+                        <File Name="index.test.js" Id="_index.test.js_75bf73e5_c4ce_4217_8313_a9e91c8f9097" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\test\index.test.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_mocha.opts_048a91a1_a276_4c05_bc15_f37a01c96ca3" Guid="1e7df3f5-120d-4599-a62a-ffe5ba63d3d2" Win64="no">
+                        <File Name="mocha.opts" Id="_mocha.opts_048a91a1_a276_4c05_bc15_f37a01c96ca3" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\test\mocha.opts" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_.eslintrc_87446e21_62e7_48db_84b5_c3d132b35e58" Guid="1cc96544-c27e-4cd7-8f3b-f13438ff58cf" Win64="no">
+                      <File Name=".eslintrc" Id="_.eslintrc_87446e21_62e7_48db_84b5_c3d132b35e58" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\.eslintrc" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_.jsfmtrc_b202e642_cb75_44be_aa44_b5bbd04190b1" Guid="26c1d4df-6013-4e91-82a0-51dcddc559b1" Win64="no">
+                      <File Name=".jsfmtrc" Id="_.jsfmtrc_b202e642_cb75_44be_aa44_b5bbd04190b1" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\.jsfmtrc" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_.npmignore_4d9dede9_1776_4c86_a964_5a92fd1cc734" Guid="2765e2a1-7b06-4fba-a1d9-53fac383a8c8" Win64="no">
+                      <File Name=".npmignore" Id="_.npmignore_4d9dede9_1776_4c86_a964_5a92fd1cc734" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\.npmignore" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_.travis.yml_1ad8a4e6_1557_452a_857c_a01b6684db0a" Guid="1f77119e-8357-4578-8edd-7c8cdfb0aea5" Win64="no">
+                      <File Name=".travis.yml" Id="_.travis.yml_1ad8a4e6_1557_452a_857c_a01b6684db0a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\.travis.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_LICENSE_f0190fc2_f236_466b_92e0_7c2b82bc6a68" Guid="80c5daa4-7f25-47e6-bf24-2b3156c11d57" Win64="no">
+                      <File Name="LICENSE" Id="_LICENSE_f0190fc2_f236_466b_92e0_7c2b82bc6a68" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\LICENSE" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_README.md_b54c1532_0559_46a2_a159_36dfd8f77b5a" Guid="73545380-e74a-4057-8d10-c8dc0fbebee6" Win64="no">
+                      <File Name="README.md" Id="_README.md_b54c1532_0559_46a2_a159_36dfd8f77b5a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_appveyor.yml_5d928417_03a5_405e_be23_f334150ed80a" Guid="e8a9f254-3284-4f4e-aaf5-720ad81781a5" Win64="no">
+                      <File Name="appveyor.yml" Id="_appveyor.yml_5d928417_03a5_405e_be23_f334150ed80a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\appveyor.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_index.js_e3aafffe_663f_4025_95b5_25f009170355" Guid="a9ec7bdd-1465-4cb7-9816-a8adc7bcf854" Win64="no">
+                      <File Name="index.js" Id="_index.js_e3aafffe_663f_4025_95b5_25f009170355" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_fde07291_cdff_464c_9b74_1683984095e5" Guid="a7478e83-d791-45fa-8fca-b24e72d615b6" Win64="no">
+                      <File Name="package.json" Id="_package.json_fde07291_cdff_464c_9b74_1683984095e5" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\electron-squirrel-startup\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_exe_icon_extractor_e1fa378f_b937_45c5_b898_46ca7dc648d8" Name="exe-icon-extractor">
+                    <Directory Id="_bin_edd06a67_0aa7_4235_a87f_83625d68bba7" Name="bin">
+                      <Directory Id="_win32_x64_85_8b68fc0d_bf31_4686_b752_b4a5674d65d3" Name="win32-x64-85">
+                        <Component Id="_exe_icon_extractor.node_1e132f12_6be0_4574_8c5e_5b9b139ba182" Guid="b83a1b55-1245-4fd5-ab6d-ef228381ad7c" Win64="no">
+                          <File Name="exe-icon-extractor.node" Id="_exe_icon_extractor.node_1e132f12_6be0_4574_8c5e_5b9b139ba182" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\bin\win32-x64-85\exe-icon-extractor.node" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                      </Directory>
+                    </Directory>
+
+                    <Directory Id="_build_ec486423_3828_4b43_acf0_d2ab07d5c40f" Name="build">
+                      <Directory Id="_Release_94de9a14_f6a2_4449_8492_c1f3b47b5b92" Name="Release">
+                        <Directory Id="_obj_d9cf8c28_6d7a_454d_b500_454f0c6c566a" Name="obj">
+                          <Directory Id="_module_a98b2ada_308d_4a0f_98bc_b985f16aaee1" Name="module">
+                            <Directory Id="_module.tlog_fc76249b_486f_446f_b7e7_d118550ce2df" Name="module.tlog">
+                              <Component Id="_CL.command.1.tlog_b69000c7_7526_4cb4_ad3a_4833f648dee1" Guid="4631b0ab-0a09-4f12-b06a-8a4b9df1a66e" Win64="no">
+                                <File Name="CL.command.1.tlog" Id="_CL.command.1.tlog_b69000c7_7526_4cb4_ad3a_4833f648dee1" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\CL.command.1.tlog" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                              <Component Id="_CL.read.1.tlog_b6c611a2_cb02_4ee4_af1b_2be839f01d5a" Guid="c086e0db-ba14-4bc9-8918-dd25f467b4a3" Win64="no">
+                                <File Name="CL.read.1.tlog" Id="_CL.read.1.tlog_b6c611a2_cb02_4ee4_af1b_2be839f01d5a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\CL.read.1.tlog" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                              <Component Id="_CL.write.1.tlog_f81c0a70_d1a4_4c9d_b28c_dc8b0d40dc43" Guid="17b86032-2fd5-49f9-b4ab-1ea6eed7b4d4" Win64="no">
+                                <File Name="CL.write.1.tlog" Id="_CL.write.1.tlog_f81c0a70_d1a4_4c9d_b28c_dc8b0d40dc43" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\CL.write.1.tlog" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                              <Component Id="_link.command.1.tlog_b55e1894_35bd_478b_bb89_6eb31b5a554f" Guid="bfc8d9bc-19b0-4958-9b0c-7d772a0518eb" Win64="no">
+                                <File Name="link.command.1.tlog" Id="_link.command.1.tlog_b55e1894_35bd_478b_bb89_6eb31b5a554f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\link.command.1.tlog" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                              <Component Id="_link.read.1.tlog_e10213e9_4df1_4a89_a54b_c25ccb8edbf6" Guid="0a8848af-1c2d-45f9-ae50-1504d837cfb2" Win64="no">
+                                <File Name="link.read.1.tlog" Id="_link.read.1.tlog_e10213e9_4df1_4a89_a54b_c25ccb8edbf6" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\link.read.1.tlog" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                              <Component Id="_link.write.1.tlog_b917f51c_5f34_45aa_a500_7fab4fd4de0e" Guid="961ddc6b-6a76-4076-8791-0f166ff75b07" Win64="no">
+                                <File Name="link.write.1.tlog" Id="_link.write.1.tlog_b917f51c_5f34_45aa_a500_7fab4fd4de0e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\link.write.1.tlog" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                              <Component Id="_module.lastbuildstate_46223488_4d76_485c_af27_0853bb420257" Guid="4da87ebc-ba9f-481b-a768-2de1546948bc" Win64="no">
+                                <File Name="module.lastbuildstate" Id="_module.lastbuildstate_46223488_4d76_485c_af27_0853bb420257" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\module.lastbuildstate" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                              <Component Id="_module.write.1u.tlog_8ed090fc_b7eb_40fe_8cd8_0b78dab009bb" Guid="985b5875-9146-401f-ab6e-46fcdb690257" Win64="no">
+                                <File Name="module.write.1u.tlog" Id="_module.write.1u.tlog_8ed090fc_b7eb_40fe_8cd8_0b78dab009bb" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.tlog\module.write.1u.tlog" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                            </Directory>
+                            <Directory Id="_src_21f0b7b2_4380_44e7_939b_dbdef1a3ceab" Name="src">
+                              <Component Id="_module.obj_b3cb4f10_b330_4bff_9549_8eab86a4b107" Guid="d99e89ba-b889-45c8-b823-660200d521de" Win64="no">
+                                <File Name="module.obj" Id="_module.obj_b3cb4f10_b330_4bff_9549_8eab86a4b107" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\src\module.obj" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                              </Component>
+                            </Directory>                            <Component Id="_module.node.recipe_df8f45c8_3677_4e18_b57c_f10423e07455" Guid="5ccd05f7-bb4f-4412-a7ba-2bf0f990d4c2" Win64="no">
+                              <File Name="module.node.recipe" Id="_module.node.recipe_df8f45c8_3677_4e18_b57c_f10423e07455" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\module.node.recipe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                            </Component>
+                            <Component Id="_win_delay_load_hook.obj_759aebfc_9906_4386_99c9_815f090ef001" Guid="fdeafec5-4c8a-4bbd-a8a9-17722deb3ca2" Win64="no">
+                              <File Name="win_delay_load_hook.obj" Id="_win_delay_load_hook.obj_759aebfc_9906_4386_99c9_815f090ef001" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\obj\module\win_delay_load_hook.obj" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                            </Component>
+                          </Directory>
+
+                        </Directory>
+                        <Component Id="_.forge_meta_438a3581_555d_42d0_8d3b_450bb6d312b4" Guid="399aaa25-6e45-426e-b29f-9e98674d5a7a" Win64="no">
+                          <File Name=".forge-meta" Id="_.forge_meta_438a3581_555d_42d0_8d3b_450bb6d312b4" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\.forge-meta" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_module.exp_6b845046_6eb3_4d03_8e42_4321a1aad56b" Guid="773e067c-86da-4af0-88c3-7d1f6f5d0926" Win64="no">
+                          <File Name="module.exp" Id="_module.exp_6b845046_6eb3_4d03_8e42_4321a1aad56b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\module.exp" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_module.iobj_699d8173_0a87_49cf_9120_e21ef4ce88d7" Guid="a1789037-a952-413e-aad7-90c2955bf7e1" Win64="no">
+                          <File Name="module.iobj" Id="_module.iobj_699d8173_0a87_49cf_9120_e21ef4ce88d7" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\module.iobj" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_module.ipdb_7f70d391_da61_44ee_9386_5012113eea14" Guid="45c16002-94f1-47b2-a5f7-2527726cf625" Win64="no">
+                          <File Name="module.ipdb" Id="_module.ipdb_7f70d391_da61_44ee_9386_5012113eea14" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\module.ipdb" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_module.lib_ea92034a_6969_4e24_a025_f28a078159e7" Guid="438369e5-37b6-4778-963a-47f5ebf97280" Win64="no">
+                          <File Name="module.lib" Id="_module.lib_ea92034a_6969_4e24_a025_f28a078159e7" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\module.lib" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_module.node_aad0b9e5_ddc2_4f8e_bebb_bd4ee9de7090" Guid="e998977e-6e1e-4773-bd18-f1a4889a6137" Win64="no">
+                          <File Name="module.node" Id="_module.node_aad0b9e5_ddc2_4f8e_bebb_bd4ee9de7090" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\module.node" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_module.pdb_98d31a20_aacb_41e2_9c55_7fa9c27c58af" Guid="b36b75b7-2e31-419d-b6aa-511d4a14c754" Win64="no">
+                          <File Name="module.pdb" Id="_module.pdb_98d31a20_aacb_41e2_9c55_7fa9c27c58af" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\Release\module.pdb" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                      </Directory>
+                      <Component Id="_binding.sln_25907cbb_0945_4596_9f02_fde05c2df404" Guid="705ffd8a-ce19-47ef-b9f0-3eb943c6a389" Win64="no">
+                        <File Name="binding.sln" Id="_binding.sln_25907cbb_0945_4596_9f02_fde05c2df404" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\binding.sln" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_config.gypi_04b4f950_084f_4607_ad2f_548f128b74bf" Guid="bf32f134-a0cf-4eac-bff3-905f79c0fb1a" Win64="no">
+                        <File Name="config.gypi" Id="_config.gypi_04b4f950_084f_4607_ad2f_548f128b74bf" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\config.gypi" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_module.vcxproj_8e78d1d9_f8ca_424f_aa73_1ea589d1a04f" Guid="074a2e24-144f-420f-a90c-f939712ad25b" Win64="no">
+                        <File Name="module.vcxproj" Id="_module.vcxproj_8e78d1d9_f8ca_424f_aa73_1ea589d1a04f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\module.vcxproj" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_module.vcxproj.filters_c3b2fc12_3e73_40d6_9f82_2dfc6bbe6a9c" Guid="6a2b7bc0-4f43-4b8f-8864-4795b6783467" Win64="no">
+                        <File Name="module.vcxproj.filters" Id="_module.vcxproj.filters_c3b2fc12_3e73_40d6_9f82_2dfc6bbe6a9c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\build\module.vcxproj.filters" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>
+
+                    <Directory Id="_src_e192be8c_5267_4a0a_ba21_93031df14767" Name="src">
+                      <Component Id="_module.cc_ac6d79c7_0e67_413a_a95e_c6279be9db0d" Guid="e7274bc0-cee4-4221-bf03-545e7d3ec616" Win64="no">
+                        <File Name="module.cc" Id="_module.cc_ac6d79c7_0e67_413a_a95e_c6279be9db0d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\src\module.cc" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_README.md_79fec260_683a_4d92_8c20_e3af39dedf26" Guid="ae45eba9-e2cf-492c-9b15-9bc021745ddb" Win64="no">
+                      <File Name="README.md" Id="_README.md_79fec260_683a_4d92_8c20_e3af39dedf26" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_binding.gyp_8ff71d02_43ea_4175_a955_333b36610730" Guid="34d09886-66f9-492b-b350-c54609f2af8b" Win64="no">
+                      <File Name="binding.gyp" Id="_binding.gyp_8ff71d02_43ea_4175_a955_333b36610730" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\binding.gyp" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_bindings.js_3934c5f5_7e24_4c6f_824c_512fe5597e13" Guid="162638ca-3c5f-461c-b86e-ee598f400f39" Win64="no">
+                      <File Name="bindings.js" Id="_bindings.js_3934c5f5_7e24_4c6f_824c_512fe5597e13" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\bindings.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_20604972_c528_475f_9c5d_bf9ee1f0c38f" Guid="6cc865cc-4717-45c2-9355-d0b32b3fa8bb" Win64="no">
+                      <File Name="package.json" Id="_package.json_20604972_c528_475f_9c5d_bf9ee1f0c38f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_test.js_8564f399_0760_4a6e_99d6_750760097bb1" Guid="a0b1f34f-af8a-4bc9-adb5-a95fd57ed3df" Win64="no">
+                      <File Name="test.js" Id="_test.js_8564f399_0760_4a6e_99d6_750760097bb1" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\exe-icon-extractor\test.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_github_url_to_object_16b8244a_def3_45c9_b382_2511ccc5d4a7" Name="github-url-to-object">
+                    <Directory Id="_dist_e5b0c9ad_874b_40cb_81b4_e60918ab29eb" Name="dist">
+                      <Component Id="_commonjs.js_1fb24e3b_cc00_48cb_a342_958a8c7f4609" Guid="cf089e23-517c-43ee-ab29-b13d53e9829a" Win64="no">
+                        <File Name="commonjs.js" Id="_commonjs.js_1fb24e3b_cc00_48cb_a342_958a8c7f4609" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\dist\commonjs.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_gh.js_e862b9d4_3cf7_4814_989c_7b6c71c8c54c" Guid="1e27cd2b-57f1-48b7-9b99-c98c259265fc" Win64="no">
+                        <File Name="gh.js" Id="_gh.js_e862b9d4_3cf7_4814_989c_7b6c71c8c54c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\dist\gh.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_index.html_31e3701b_4487_48fb_887f_8cb97288ada9" Guid="dd5a148b-e629-4304-811b-e75554234166" Win64="no">
+                        <File Name="index.html" Id="_index.html_31e3701b_4487_48fb_887f_8cb97288ada9" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\dist\index.html" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>
+                    <Directory Id="_test_02c24d2d_8621_47e2_b446_e197d51cb2cf" Name="test">
+                      <Component Id="_index.js_4983d58a_5612_4b55_9a2b_0db80d1a2765" Guid="6344dda1-6f0c-4b31-8535-f0e9a055dca3" Win64="no">
+                        <File Name="index.js" Id="_index.js_4983d58a_5612_4b55_9a2b_0db80d1a2765" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\test\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_mocha.opts_9b760472_fcbd_4abd_847c_1762e39fd563" Guid="7957f0eb-24db-4a31-8351-2ebaed33e6fa" Win64="no">
+                        <File Name="mocha.opts" Id="_mocha.opts_9b760472_fcbd_4abd_847c_1762e39fd563" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\test\mocha.opts" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_.travis.yml_9e975557_cc8f_4840_9ae4_6884ff164216" Guid="d08210a6-6a02-46d5-a60a-8c98f4856b15" Win64="no">
+                      <File Name=".travis.yml" Id="_.travis.yml_9e975557_cc8f_4840_9ae4_6884ff164216" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\.travis.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_README.md_46279527_1f7f_4f04_9d95_e750789e6e8c" Guid="09ea028d-dbc9-4d50-80d0-fbad6102d935" Win64="no">
+                      <File Name="README.md" Id="_README.md_46279527_1f7f_4f04_9d95_e750789e6e8c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_bower.json_d07acf1e_f3b1_445c_b58c_b9b0454456cd" Guid="be31ef96-07c7-4e96-b475-834e58fd46d2" Win64="no">
+                      <File Name="bower.json" Id="_bower.json_d07acf1e_f3b1_445c_b58c_b9b0454456cd" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\bower.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_index.js_3d0540dc_ea52_4e3b_a819_9e29c3d607c0" Guid="3359c404-a5ad-481b-bd89-e9aee299d32e" Win64="no">
+                      <File Name="index.js" Id="_index.js_3d0540dc_ea52_4e3b_a819_9e29c3d607c0" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_9389ef95_d8c1_4ce9_9398_eb900623644b" Guid="e9de808b-c238-426b-b413-543e3bb91e95" Win64="no">
+                      <File Name="package.json" Id="_package.json_9389ef95_d8c1_4ce9_9398_eb900623644b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\github-url-to-object\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_resources_app_node_modules_is_url_3ab38c37_c17f_45c6_9bb3_e65fe0abaa4f" Name="is-url">
+                    <Directory Id="_test_50e59115_4db9_4cab_a8e6_9bf106cf7472" Name="test">
+                      <Component Id="_index.js_ad62bae5_cfe9_47b0_9158_09950149824b" Guid="c8cf85a8-3da0-48d7-8e17-68c2a50f062e" Win64="no">
+                        <File Name="index.js" Id="_index.js_ad62bae5_cfe9_47b0_9158_09950149824b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\is-url\test\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_.travis.yml_8bd2f73a_4863_4f8d_a9d3_9b273b4d0a45" Guid="92c7e587-648f-428c-85f2-5b8ddb9fca66" Win64="no">
+                      <File Name=".travis.yml" Id="_.travis.yml_8bd2f73a_4863_4f8d_a9d3_9b273b4d0a45" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\is-url\.travis.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_History.md_19b17a45_4e06_48f2_a228_3779cc52373e" Guid="cb031102-b66b-4983-8fbc-20822b8c99c9" Win64="no">
+                      <File Name="History.md" Id="_History.md_19b17a45_4e06_48f2_a228_3779cc52373e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\is-url\History.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_LICENSE_MIT_0e68bca8_7efc_42b7_bea7_ed9dde248b18" Guid="c9859b96-0771-45f6-9b37-d0b93f2caba7" Win64="no">
+                      <File Name="LICENSE-MIT" Id="_LICENSE_MIT_0e68bca8_7efc_42b7_bea7_ed9dde248b18" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\is-url\LICENSE-MIT" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_Readme.md_a48b74a6_8ba9_4e95_b888_6f59e6cb2141" Guid="f89b040b-2db4-4659-a52d-2b80e15aec77" Win64="no">
+                      <File Name="Readme.md" Id="_Readme.md_a48b74a6_8ba9_4e95_b888_6f59e6cb2141" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\is-url\Readme.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_index.js_dc9f652d_3bb2_4850_b8a5_75155b3b7673" Guid="21e1f60b-324a-4601-b5f1-4eeb7ae86742" Win64="no">
+                      <File Name="index.js" Id="_index.js_dc9f652d_3bb2_4850_b8a5_75155b3b7673" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\is-url\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_0210f9dd_263e_4dda_a7f3_390be124d1b6" Guid="f2102473-5182-4ef3-8df1-0f5ed1834d28" Win64="no">
+                      <File Name="package.json" Id="_package.json_0210f9dd_263e_4dda_a7f3_390be124d1b6" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\is-url\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_resources_app_node_modules_ms_43392cca_16a6_4bbb_bd09_035e938672b5" Name="ms">
+                    <Component Id="_index.js_adee9f01_13c3_413e_a40a_272046bd963e" Guid="e318ecb1-a03c-4304-ac45-29c9baeb0117" Win64="no">
+                      <File Name="index.js" Id="_index.js_adee9f01_13c3_413e_a40a_272046bd963e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ms\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_license.md_30b3db65_68f0_42b9_b5f0_32d6019ead48" Guid="18bb6b60-96c9-4e44-b95b-f0c720756adf" Win64="no">
+                      <File Name="license.md" Id="_license.md_30b3db65_68f0_42b9_b5f0_32d6019ead48" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ms\license.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_6e453af1_6888_4f4c_a6de_ae4e5ee12807" Guid="154da183-85e7-4a0a-926b-c2332deb9b5b" Win64="no">
+                      <File Name="package.json" Id="_package.json_6e453af1_6888_4f4c_a6de_ae4e5ee12807" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ms\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_readme.md_36623538_e606_4833_b2ea_28ef628efed6" Guid="1421dcbc-43a1-4538-8759-523293723643" Win64="no">
+                      <File Name="readme.md" Id="_readme.md_36623538_e606_4833_b2ea_28ef628efed6" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ms\readme.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+                  <Directory Id="_node_fetch_e0a78806_4ef6_4ef4_a7d9_a328b4b8efb5" Name="node-fetch">
+                    <Directory Id="_lib_070de55e_fe8a_4992_9862_fc77ba3ee434" Name="lib">
+                      <Component Id="_index.es.js_3d5af4f9_6935_4c5a_a019_68345b0e72c8" Guid="14eb0e14-0f1d-4beb-900b-7f4c8897ecf1" Win64="no">
+                        <File Name="index.es.js" Id="_index.es.js_3d5af4f9_6935_4c5a_a019_68345b0e72c8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\lib\index.es.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_index.js_8de8279a_00c6_4389_9f37_532a171a278d" Guid="758fbb28-201f-4533-bed1-66f24ff5a9bf" Win64="no">
+                        <File Name="index.js" Id="_index.js_8de8279a_00c6_4389_9f37_532a171a278d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\lib\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_index.mjs_b8f678b8_84f0_44c0_b8eb_7a7b809a7beb" Guid="1c3533a0-dcde-4c5b-a35d-a6ab79739241" Win64="no">
+                        <File Name="index.mjs" Id="_index.mjs_b8f678b8_84f0_44c0_b8eb_7a7b809a7beb" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\lib\index.mjs" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_CHANGELOG.md_ad8ab9a3_e2e7_49d2_9621_227b42e70f96" Guid="ee8404b2-faad-4a32-9fa8-fb6e906dc561" Win64="no">
+                      <File Name="CHANGELOG.md" Id="_CHANGELOG.md_ad8ab9a3_e2e7_49d2_9621_227b42e70f96" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\CHANGELOG.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_LICENSE.md_9ea32e3e_fb66_45dc_89b2_c26b287a7e36" Guid="ec43d465-cf65-4bae-8b8f-53de8d6c1480" Win64="no">
+                      <File Name="LICENSE.md" Id="_LICENSE.md_9ea32e3e_fb66_45dc_89b2_c26b287a7e36" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\LICENSE.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_README.md_a21b545f_3525_4925_9bda_02fb3cb79fc9" Guid="70cca852-b607-4503-a4da-6e2a397d302d" Win64="no">
+                      <File Name="README.md" Id="_README.md_a21b545f_3525_4925_9bda_02fb3cb79fc9" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_browser.js_eabb40d1_b729_4cca_ac31_78f596bad183" Guid="3082caf9-69f6-4520-bf20-c0d352e5f2d3" Win64="no">
+                      <File Name="browser.js" Id="_browser.js_eabb40d1_b729_4cca_ac31_78f596bad183" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\browser.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_450bd1e7_a766_4e3b_a4a5_c7e727e6279d" Guid="bc8fc0b0-e269-4f40-b489-92b74e0214f3" Win64="no">
+                      <File Name="package.json" Id="_package.json_450bd1e7_a766_4e3b_a4a5_c7e727e6279d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\node-fetch\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_update_electron_app_c1449293_8179_4e65_abfb_72b49b761672" Name="update-electron-app">
+                    <Directory Id="_.circleci_c64586b5_d95c_498c_9ca1_17678174580b" Name=".circleci">
+                      <Component Id="_config.yml_2673eeeb_d4f8_44d0_bc75_5c6391faf443" Guid="50c16469-25a6-4527-80ec-a7ed34694329" Win64="no">
+                        <File Name="config.yml" Id="_config.yml_2673eeeb_d4f8_44d0_bc75_5c6391faf443" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\.circleci\config.yml" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>
+                    <Directory Id="_node_modules_bfa991a1_9775_48eb_80af_fd565fd1e092" Name="node_modules">
+                      <Directory Id="_ms_1fd478ea_5178_4ee6_9a91_d260ab3581ad" Name="ms">
+                        <Component Id="_index.js_9cf83c30_e31c_4a1d_8852_503548415ed8" Guid="ed966496-44da-46d5-8236-9f7423a9f1e4" Win64="no">
+                          <File Name="index.js" Id="_index.js_9cf83c30_e31c_4a1d_8852_503548415ed8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\node_modules\ms\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_license.md_4ddcb647_173e_443c_90cd_13bc8354471f" Guid="8b27d5e1-667e-4c5d-8249-6c34a7565505" Win64="no">
+                          <File Name="license.md" Id="_license.md_4ddcb647_173e_443c_90cd_13bc8354471f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\node_modules\ms\license.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_package.json_168a9d0e_b3ae_4e0c_ae8f_161a47a8af60" Guid="ce43f73d-eca4-4edc-94fa-6da1093c89fa" Win64="no">
+                          <File Name="package.json" Id="_package.json_168a9d0e_b3ae_4e0c_ae8f_161a47a8af60" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\node_modules\ms\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                        <Component Id="_readme.md_53bc03a0_6313_44fe_a0e3_66ddf3b3e5f8" Guid="90628bb8-211a-4003-b3a6-ab14805bf499" Win64="no">
+                          <File Name="readme.md" Id="_readme.md_53bc03a0_6313_44fe_a0e3_66ddf3b3e5f8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\node_modules\ms\readme.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                        </Component>
+                      </Directory>
+                    </Directory>
+
+                    <Directory Id="_test_f61d34ab_e43d_43ad_bc61_212bc3d632cf" Name="test">
+                      <Component Id="_index.test_d.ts_0110ac8a_87cb_4724_bc53_bfb06f1ccab9" Guid="e0eb2e8e-705f-44eb-858f-fcaace0f90fd" Win64="no">
+                        <File Name="index.test-d.ts" Id="_index.test_d.ts_0110ac8a_87cb_4724_bc53_bfb06f1ccab9" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\test\index.test-d.ts" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_index.test.js_e2ffe483_3cdd_4387_9cb7_4359c787e474" Guid="36f50bd2-775e-4f89-9337-939949319edd" Win64="no">
+                        <File Name="index.test.js" Id="_index.test.js_e2ffe483_3cdd_4387_9cb7_4359c787e474" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\test\index.test.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_.releaserc.json_f4f00fe6_9315_465b_bcff_468a9ea5909d" Guid="bd3da5af-3f7c-4ec9-97be-feabed5451e8" Win64="no">
+                      <File Name=".releaserc.json" Id="_.releaserc.json_f4f00fe6_9315_465b_bcff_468a9ea5909d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\.releaserc.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_LICENSE_8f6c0ad8_cb06_403a_9333_eb80eed16904" Guid="05e62b31-6885-437b-93f3-f77f61d5fa17" Win64="no">
+                      <File Name="LICENSE" Id="_LICENSE_8f6c0ad8_cb06_403a_9333_eb80eed16904" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\LICENSE" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_index.d.ts_5a4f6af0_cac6_447a_a131_b381772c116a" Guid="d4289635-3cce-44e5-b271-c56d152bff66" Win64="no">
+                      <File Name="index.d.ts" Id="_index.d.ts_5a4f6af0_cac6_447a_a131_b381772c116a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\index.d.ts" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_index.js_33f60ddc_e226_449a_929e_771457528916" Guid="045d538f-cec0-4cca-8bbb-95882e77a248" Win64="no">
+                      <File Name="index.js" Id="_index.js_33f60ddc_e226_449a_929e_771457528916" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_0e9b4b92_569e_40e7_950b_da268fbc7d66" Guid="c235ed36-8c97-4e0f-b57f-86107656feaf" Win64="no">
+                      <File Name="package.json" Id="_package.json_0e9b4b92_569e_40e7_950b_da268fbc7d66" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_readme.md_ef76b36b_d85e_47ae_95ed_8883fd8a1153" Guid="64170034-5276-4ec7-b548-80a01b5bd6d7" Win64="no">
+                      <File Name="readme.md" Id="_readme.md_ef76b36b_d85e_47ae_95ed_8883fd8a1153" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\readme.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_screenshot.png_a7fdb1b1_5733_4a64_9623_81edc43cfd14" Guid="f3ff9bfe-811f-4025-a2be-9fa6c09d8427" Win64="no">
+                      <File Name="screenshot.png" Id="_screenshot.png_a7fdb1b1_5733_4a64_9623_81edc43cfd14" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\update-electron-app\screenshot.png" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                  <Directory Id="_resources_app_node_modules_ws_220bbc3e_1e00_4b72_a7d8_c1a3497001a3" Name="ws">
+                    <Directory Id="_resources_app_node_modules_ws_lib_b645513e_97cd_40b9_835a_2a384a3733ac" Name="lib">
+                      <Component Id="_buffer_util.js_15e9f545_e11b_4566_8587_1fcf6b216a5e" Guid="344315cc-962a-4fd5-a528-43cb12801207" Win64="no">
+                        <File Name="buffer-util.js" Id="_buffer_util.js_15e9f545_e11b_4566_8587_1fcf6b216a5e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\buffer-util.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_constants.js_37d0175d_409c_452c_86ab_c618f98cb842" Guid="d4634f7e-7965-4ea5-8125-b4540a06e6d8" Win64="no">
+                        <File Name="constants.js" Id="_constants.js_37d0175d_409c_452c_86ab_c618f98cb842" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\constants.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_event_target.js_0d862c7d_4260_4797_8524_bbe2ff24fd48" Guid="4161d68c-ef45-4602-a4c4-aa88ff1a9a4b" Win64="no">
+                        <File Name="event-target.js" Id="_event_target.js_0d862c7d_4260_4797_8524_bbe2ff24fd48" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\event-target.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_extension.js_634c76a2_64af_4377_9ea4_f7af87a46a01" Guid="ee744d11-f617-4a81-be8f-a569726a26a3" Win64="no">
+                        <File Name="extension.js" Id="_extension.js_634c76a2_64af_4377_9ea4_f7af87a46a01" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\extension.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_limiter.js_b5b99bbb_7426_4a5b_85e6_f8337bbeffd3" Guid="979ec784-f3a9-4fac-8b58-1759beb259ed" Win64="no">
+                        <File Name="limiter.js" Id="_limiter.js_b5b99bbb_7426_4a5b_85e6_f8337bbeffd3" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\limiter.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_permessage_deflate.js_e20fa4bc_4fd6_4792_9ea1_c70cff560b3c" Guid="d3067e71-5df3-415e-8bf9-09c36e2993df" Win64="no">
+                        <File Name="permessage-deflate.js" Id="_permessage_deflate.js_e20fa4bc_4fd6_4792_9ea1_c70cff560b3c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\permessage-deflate.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_receiver.js_89fec797_d6c9_4a94_967e_88e58232bd9b" Guid="e7776127-ab28-48e6-a4c6-2047983f3476" Win64="no">
+                        <File Name="receiver.js" Id="_receiver.js_89fec797_d6c9_4a94_967e_88e58232bd9b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\receiver.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_sender.js_34ad8768_d0f5_4ea6_83b7_db73309dd940" Guid="e4bb5090-a8b0-49e3-b2af-1a5c5e61acba" Win64="no">
+                        <File Name="sender.js" Id="_sender.js_34ad8768_d0f5_4ea6_83b7_db73309dd940" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\sender.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_stream.js_d308642f_8f07_4ed3_b5d5_e97c5a3854e3" Guid="3e2ab3f0-7294-4cd9-adf1-026acfde800f" Win64="no">
+                        <File Name="stream.js" Id="_stream.js_d308642f_8f07_4ed3_b5d5_e97c5a3854e3" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\stream.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_validation.js_205bb3f0_b622_4f23_b860_ee646eb60d09" Guid="f9b9c423-235e-42da-a1ca-c5675c619859" Win64="no">
+                        <File Name="validation.js" Id="_validation.js_205bb3f0_b622_4f23_b860_ee646eb60d09" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\validation.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_websocket_server.js_f03f6c2b_28a8_4695_a13a_585c76bedac9" Guid="aff6f1d5-7366-451c-b3fb-d9c3569ef07e" Win64="no">
+                        <File Name="websocket-server.js" Id="_websocket_server.js_f03f6c2b_28a8_4695_a13a_585c76bedac9" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\websocket-server.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                      <Component Id="_websocket.js_defa89a8_5a86_438e_90a2_95db38738fd8" Guid="a57ecba1-954d-48b9-acac-601cdba4902b" Win64="no">
+                        <File Name="websocket.js" Id="_websocket.js_defa89a8_5a86_438e_90a2_95db38738fd8" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\lib\websocket.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                      </Component>
+                    </Directory>                    <Component Id="_LICENSE_054459aa_87b2_484f_8392_401290e2a8b4" Guid="877ffafc-e668-4f59-bd05-89a85b25f259" Win64="no">
+                      <File Name="LICENSE" Id="_LICENSE_054459aa_87b2_484f_8392_401290e2a8b4" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\LICENSE" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_README.md_7680c0db_30a9_4431_a24b_708ad9290bff" Guid="72a73ff1-3503-46f3-a887-1badd6ac5d1b" Win64="no">
+                      <File Name="README.md" Id="_README.md_7680c0db_30a9_4431_a24b_708ad9290bff" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_browser.js_133c02b6_0a7b_41c6_9e02_7c1795fbb1cc" Guid="c1924ec1-70f4-4128-9156-ead9ef3d0046" Win64="no">
+                      <File Name="browser.js" Id="_browser.js_133c02b6_0a7b_41c6_9e02_7c1795fbb1cc" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\browser.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_index.js_0e758c3b_e869_4d65_a629_e89ab3abf712" Guid="c6425c45-f17c-40bf-a044-97529023014f" Win64="no">
+                      <File Name="index.js" Id="_index.js_0e758c3b_e869_4d65_a629_e89ab3abf712" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                    <Component Id="_package.json_79971739_ba22_4d31_acac_b950706d8280" Guid="09d5e5b7-226f-4f8e-90f0-23434701a618" Win64="no">
+                      <File Name="package.json" Id="_package.json_79971739_ba22_4d31_acac_b950706d8280" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\node_modules\ws\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                    </Component>
+                  </Directory>
+
+                </Directory>
+                <Component Id="_resources_app_.gitignore_a9ccfbd5_f851_4742_a832_607edf38f1cc" Guid="db32536e-d54f-4497-bfac-77110f719730" Win64="no">
+                  <File Name=".gitignore" Id="_resources_app_.gitignore_a9ccfbd5_f851_4742_a832_607edf38f1cc" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\.gitignore" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_LICENSE_c7ad012d_c029_4b8d_baeb_d30b6e55026f" Guid="ee20f199-a8af-4d84-aa72-e020efc9c052" Win64="no">
+                  <File Name="LICENSE" Id="_resources_app_LICENSE_c7ad012d_c029_4b8d_baeb_d30b6e55026f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\LICENSE" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_README.md_35addcf1_064d_44ab_9ece_9c040cb4de97" Guid="d84ca59a-f91f-4927-942e-16c61b4921cb" Win64="no">
+                  <File Name="README.md" Id="_resources_app_README.md_35addcf1_064d_44ab_9ece_9c040cb4de97" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\README.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_app.js_bfc91951_d391_4484_9e06_ccb006d4af05" Guid="b07ed9c3-5ded-4cad-9f8b-92549533aead" Win64="no">
+                  <File Name="app.js" Id="_resources_app_app.js_bfc91951_d391_4484_9e06_ccb006d4af05" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\app.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_forge.config.js_152cc232_a2f4_47b9_821e_d055e066b2ae" Guid="f7e17271-e06c-432f-9648-dc937d4dc22f" Win64="no">
+                  <File Name="forge.config.js" Id="_resources_app_forge.config.js_152cc232_a2f4_47b9_821e_d055e066b2ae" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\forge.config.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_index.css_43f567b1_8417_4ee0_aa80_42617077ddf3" Guid="155d369e-d47b-4e53-8518-a42fd910051b" Win64="no">
+                  <File Name="index.css" Id="_resources_app_index.css_43f567b1_8417_4ee0_aa80_42617077ddf3" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\index.css" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_index.html_803d477b_2145_4d8d_baaf_e3e58716e707" Guid="b7f38669-a0a5-42da-b190-86dcef5f5010" Win64="no">
+                  <File Name="index.html" Id="_resources_app_index.html_803d477b_2145_4d8d_baaf_e3e58716e707" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\index.html" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_index.js_8bd8a203_b2a2_42f1_9e6b_0f43107f9e81" Guid="93515b1b-7705-49f9-bf98-e76e77968b57" Win64="no">
+                  <File Name="index.js" Id="_resources_app_index.js_8bd8a203_b2a2_42f1_9e6b_0f43107f9e81" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\index.js" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_installation.md_a54fbb89_42ba_41e0_b6fb_ab3e0b4cd10c" Guid="9adc71d9-0566-4782-b10c-87b5d842f4bb" Win64="no">
+                  <File Name="installation.md" Id="_resources_app_installation.md_a54fbb89_42ba_41e0_b6fb_ab3e0b4cd10c" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\installation.md" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_logo.icns_1c3cdd14_d8ed_4125_bac3_e0cbcc2895d5" Guid="1fa3c473-57f6-47a9-bc50-5e5dd7d67085" Win64="no">
+                  <File Name="logo.icns" Id="_resources_app_logo.icns_1c3cdd14_d8ed_4125_bac3_e0cbcc2895d5" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\logo.icns" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_logo.ico_5d8a54c3_4683_44ec_a8a8_4bc6552ca0fb" Guid="b3cc82b0-aa6e-46bd-8d94-c236303bccdd" Win64="no">
+                  <File Name="logo.ico" Id="_resources_app_logo.ico_5d8a54c3_4683_44ec_a8a8_4bc6552ca0fb" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\logo.ico" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_logo.png_d3354e17_b34c_4b0e_b719_ebb52b8b4d06" Guid="75581e9e-8ee7-4e43-8a3e-1bd44009beee" Win64="no">
+                  <File Name="logo.png" Id="_resources_app_logo.png_d3354e17_b34c_4b0e_b719_ebb52b8b4d06" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\logo.png" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_macos_blocked.png_57cc8169_32c6_4fb4_aa7b_d2b84697a7b6" Guid="86841a5e-12dd-4c2b-963c-cd71b2baaebf" Win64="no">
+                  <File Name="macos-blocked.png" Id="_resources_app_macos_blocked.png_57cc8169_32c6_4fb4_aa7b_d2b84697a7b6" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\macos-blocked.png" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_macos_open_1.png_2a2a9e20_456b_43d3_8bde_0f0e2149d569" Guid="a1c25ea6-b2f9-4e4d-824f-27bcfb43949a" Win64="no">
+                  <File Name="macos-open-1.png" Id="_resources_app_macos_open_1.png_2a2a9e20_456b_43d3_8bde_0f0e2149d569" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\macos-open-1.png" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_macos_open_2.png_a3ea1236_7c24_4cf5_a1cb_a83e60a975ff" Guid="92b385b6-e8e2-4b04-98fb-2d13375982f2" Win64="no">
+                  <File Name="macos-open-2.png" Id="_resources_app_macos_open_2.png_a3ea1236_7c24_4cf5_a1cb_a83e60a975ff" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\macos-open-2.png" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+                <Component Id="_resources_app_package.json_25f7eff6_4cb0_4a89_8dbd_29549a44af52" Guid="dea9a85d-7bc8-4288-9355-ae00964698db" Win64="no">
+                  <File Name="package.json" Id="_resources_app_package.json_25f7eff6_4cb0_4a89_8dbd_29549a44af52" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources\app\package.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+                </Component>
+              </Directory>
+
+            </Directory>
+
+            <Directory Id="_swiftshader_0a4123e5_a888_44e2_a68f_feb76c15f62b" Name="swiftshader">
+              <Component Id="_swiftshader_libEGL.dll_224828c2_0e42_486e_9b84_827dc83014d0" Guid="9974bafe-9ce6-4280-84ba-4c3a8038a653" Win64="no">
+                <File Name="libEGL.dll" Id="_swiftshader_libEGL.dll_224828c2_0e42_486e_9b84_827dc83014d0" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\swiftshader\libEGL.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_swiftshader_libGLESv2.dll_e273ee77_4325_4536_ba6c_f92340b9fe18" Guid="5a5611d9-53e7-4b9b-83db-d4f8fcda2b4b" Win64="no">
+                <File Name="libGLESv2.dll" Id="_swiftshader_libGLESv2.dll_e273ee77_4325_4536_ba6c_f92340b9fe18" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\swiftshader\libGLESv2.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+            </Directory>            <Component Id="_LICENSE_d1b2294b_5b52_4722_b57e_0fce36ce597d" Guid="adaf86ed-1205-4579-8b0c-d8987f30bc21" Win64="no">
+              <File Name="LICENSE" Id="_LICENSE_d1b2294b_5b52_4722_b57e_0fce36ce597d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\LICENSE" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_LICENSES.chromium.html_f7eb617f_0446_408c_8c72_38fdd9454453" Guid="d5af4127-cf01-487d-a206-19accc88ac44" Win64="no">
+              <File Name="LICENSES.chromium.html" Id="_LICENSES.chromium.html_f7eb617f_0446_408c_8c72_38fdd9454453" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\LICENSES.chromium.html" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_chrome_100_percent.pak_e1d24f2f_c821_4583_8180_6d87c1859898" Guid="1926fe37-5a38-4837-89ae-7b831a47b55e" Win64="no">
+              <File Name="chrome_100_percent.pak" Id="_chrome_100_percent.pak_e1d24f2f_c821_4583_8180_6d87c1859898" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\chrome_100_percent.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_chrome_200_percent.pak_7cd3a5b8_fc22_4ccb_9728_9991671d8217" Guid="74bed361-a572-43ca-81bc-2ca8a1a32b3e" Win64="no">
+              <File Name="chrome_200_percent.pak" Id="_chrome_200_percent.pak_7cd3a5b8_fc22_4ccb_9728_9991671d8217" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\chrome_200_percent.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_d3dcompiler_47.dll_ba4db4de_8959_4b61_a745_9706661ec999" Guid="1a2c962e-a5aa-4a86-b545-06e2016477f9" Win64="no">
+              <File Name="d3dcompiler_47.dll" Id="_d3dcompiler_47.dll_ba4db4de_8959_4b61_a745_9706661ec999" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\d3dcompiler_47.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_discord_rpc.exe_4f1921d3_507c_46b2_8b9e_92682a64e81a" Guid="045dad6c-2086-408b-b7f5-c4df1a0a048a" Win64="no">
+              <File Name="discord-rpc.exe" Id="_discord_rpc.exe_4f1921d3_507c_46b2_8b9e_92682a64e81a" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\discord-rpc.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_ffmpeg.dll_23bfaaa5_281c_41ad_9f06_652b9f2f3d08" Guid="6c50810b-220e-4c72-96f3-d9b0a8d03369" Win64="no">
+              <File Name="ffmpeg.dll" Id="_ffmpeg.dll_23bfaaa5_281c_41ad_9f06_652b9f2f3d08" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\ffmpeg.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_icudtl.dat_48d70f40_fe0e_4133_94d7_9699c8fa1b3e" Guid="3f6f0b2a-0303-4e9a-842c-03601d3235ed" Win64="no">
+              <File Name="icudtl.dat" Id="_icudtl.dat_48d70f40_fe0e_4133_94d7_9699c8fa1b3e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\icudtl.dat" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_libEGL.dll_9291232e_dfc3_4ebb_b92e_4f16a052300d" Guid="2b3d17f0-d8fb-4fee-b100-df699465edd7" Win64="no">
+              <File Name="libEGL.dll" Id="_libEGL.dll_9291232e_dfc3_4ebb_b92e_4f16a052300d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\libEGL.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_libGLESv2.dll_f2b444a0_0a09_47cc_aa5e_7884641ece08" Guid="e94304bd-93ec-4be9-b162-4f017671ccbc" Win64="no">
+              <File Name="libGLESv2.dll" Id="_libGLESv2.dll_f2b444a0_0a09_47cc_aa5e_7884641ece08" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\libGLESv2.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_resources.pak_33ca5c6f_ea26_4630_898b_0b06a4214b2d" Guid="3c05f4a3-8ff0-486b-9e05-4bb6d6e4394e" Win64="no">
+              <File Name="resources.pak" Id="_resources.pak_33ca5c6f_ea26_4630_898b_0b06a4214b2d" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\resources.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_snapshot_blob.bin_378b7906_ad65_47e8_b5e0_c6bc32255883" Guid="810f4515-277f-4f7a-95c0-3afdde18549d" Win64="no">
+              <File Name="snapshot_blob.bin" Id="_snapshot_blob.bin_378b7906_ad65_47e8_b5e0_c6bc32255883" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\snapshot_blob.bin" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_v8_context_snapshot.bin_377ee9ed_25fc_489b_8949_34e9755cc7ee" Guid="98e1910e-7cfe-466c-86f7-93c9fde4b988" Win64="no">
+              <File Name="v8_context_snapshot.bin" Id="_v8_context_snapshot.bin_377ee9ed_25fc_489b_8949_34e9755cc7ee" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\v8_context_snapshot.bin" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_version_2b726a6e_cb89_48da_8f48_a4d10fe6ea9b" Guid="d37a487f-4609-408a-abe1-5ea807836e5c" Win64="no">
+              <File Name="version" Id="_version_2b726a6e_cb89_48da_8f48_a4d10fe6ea9b" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\version" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_vk_swiftshader.dll_02d7e604_c121_4614_b5fe_7dd1b2ae15f0" Guid="d2e2a62c-eeee-46ad-908a-27ce30bd511c" Win64="no">
+              <File Name="vk_swiftshader.dll" Id="_vk_swiftshader.dll_02d7e604_c121_4614_b5fe_7dd1b2ae15f0" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\vk_swiftshader.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_vk_swiftshader_icd.json_5939759d_3b15_48c3_88a8_1d0b3e60711e" Guid="c3ca64f1-bd5e-4a4e-b441-4cc32dd8cfde" Win64="no">
+              <File Name="vk_swiftshader_icd.json" Id="_vk_swiftshader_icd.json_5939759d_3b15_48c3_88a8_1d0b3e60711e" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\vk_swiftshader_icd.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_vulkan_1.dll_1695ed45_26fd_4039_977d_54c1b41c7e0f" Guid="788f1ac6-f843-429b-8a33-dd6775177756" Win64="no">
+              <File Name="vulkan-1.dll" Id="_vulkan_1.dll_1695ed45_26fd_4039_977d_54c1b41c7e0f" Source="D:\a\discord-rpc\discord-rpc\out\Discord RPC-win32-x64\vulkan-1.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+          </Directory>
+          <Component Id="_discord_rpc.exe_a94e80d2_69b0_43e5_97b9_9d9aac8aae07" Guid="3c9500a5-4e33-4396-8b74-32270a46ba40" Win64="no">
+            <File Name="discord-rpc.exe" Id="_discord_rpc.exe_a94e80d2_69b0_43e5_97b9_9d9aac8aae07" Source="C:\Users\RUNNER~1\AppData\Local\Temp\discord-rpcq5iRSr\discord-rpc.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+          </Component>
+          <Component Id="_.installInfo.json_333a81d3_7857_4dd7_88c9_ff351fe20084" Guid="8f73b3a0-2420-47bc-a337-9b966fe9046c" Win64="no">
+            <File Name=".installInfo.json" Id="_.installInfo.json_333a81d3_7857_4dd7_88c9_ff351fe20084" Source="C:\Users\RUNNER~1\AppData\Local\Temp\.installInfouRiQk1\.installInfo.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+          </Component>
+          <Component Id="RegistryInstallPath" Guid="7503284a-1954-4bcd-9c1c-89d07e49c5f0" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="InstallPath" Type="string" Value="[APPLICATIONROOTDIRECTORY]" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallDisplayName" Guid="817a0f88-cb0d-40b7-ba20-49eba3264c0a" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="DisplayName" Type="string" Value="[VisibleProductName]" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallPublisher" Guid="13462545-6c01-4f76-9d1e-cca5b769c170" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="Publisher" Type="string" Value="Team int" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallDisplayVersion" Guid="8c633637-eb22-4bf3-bf7e-48c85c2974a2" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="DisplayVersion" Type="string" Value="1.0.0" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallModifyString" Guid="e3404b58-3f04-4166-849e-9b1c4dccf93d" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="ModifyPath" Type="expandable" Value="MsiExec.exe /I {DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallString" Guid="987ee059-590e-47e5-888e-12f905ffe93f" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="UninstallString" Type="expandable" Value="MsiExec.exe /X {DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallDisplayIcon" Guid="fad5a2a9-8b1e-494f-b729-ef1be20c7364" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{DC5A35E7-0AEF-4A0D-92CC-A0198F7354E1}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="DisplayIcon" Type="expandable" Value="[SystemFolder]msiexec.exe" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+        </Directory>
+      </Directory>
+
+      <!-- Desktop -->
+      <Directory Id="DesktopFolder" Name="Desktop" />
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Team int"/>
+      </Directory>
+    </Directory>
+
+    <!-- Step 3: Add app to Start Menu -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="d30acc68-cee5-405b-8645-dbe0e757eb4b" Win64="no">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="Discord RPC"
+                  Description="Discord RPC app"
+                  Target="[APPLICATIONROOTDIRECTORY]discord-rpc.exe"
+                  WorkingDirectory="APPLICATIONROOTDIRECTORY">
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="com.squirrel.discord rpc.discord-rpc" />
+        </Shortcut>
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU"
+                       Key="Software\Microsoft\Discord RPC"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+   <!-- Step 4: Add app desktop shortcut --> 
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="27cace2a-30c9-4998-abda-21aac15911c8" >
+          <Shortcut Id="MyDesktopShortcut"
+                    Name="Discord RPC"
+                    Description="Discord RPC app"
+                    Target="[APPLICATIONROOTDIRECTORY]discord-rpc.exe"
+                    WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+          <RegistryValue Root="HKCU"
+                    Key="Software\Microsoft\Discord RPC"
+                    Name="installed"
+                    Type="integer"
+                    Value="1"
+                    KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+
+    <!-- Lets cleanup any files that are were not part of the initial install
+    via this MSI. Such as newer versions installed by the auto-updater. -->
+    <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
+      <Component Id="PurgeOnUninstall" Guid="265c2868-5843-46b6-8f00-e48aade97895" Win64="no">
+        <CreateFolder/>
+        <util:RemoveFolderEx On="uninstall" Property="INSTALLPATH" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Complete" Title="Discord RPC (1.0.0)" Description="The complete package." Display="expand" Level="1" ConfigurableDirectory="APPLICATIONROOTDIRECTORY">
+      <!-- Step 5: Tell WiX to install the files -->
+      <Feature Id="MainApplication" Title="Main Application" Level="1" Description="The main components to run the applications." >
+        <ComponentRef Id="_locales_am.pak_9c45c587_d1b9_4ae9_9f80_6492893b43e8" />
+        <ComponentRef Id="_locales_ar.pak_46340ee5_713d_4453_90b0_8360619d1dbb" />
+        <ComponentRef Id="_locales_bg.pak_333931a8_86f6_4315_ba9d_f272a45e4856" />
+        <ComponentRef Id="_locales_bn.pak_7349189d_5965_4e79_acd2_26b3ae1fc7e3" />
+        <ComponentRef Id="_locales_ca.pak_19c3e8ed_9b23_421a_a9c4_29db0c99681c" />
+        <ComponentRef Id="_locales_cs.pak_c56b8610_0e89_4f40_99a3_ea72837697a2" />
+        <ComponentRef Id="_locales_da.pak_4f3f49c0_77ef_4f67_b737_5b5a917a17b8" />
+        <ComponentRef Id="_locales_de.pak_cac324f1_38e3_4859_893d_519321a94b25" />
+        <ComponentRef Id="_locales_el.pak_baeb5f15_f8d0_468c_9a7a_8a83a2feaa37" />
+        <ComponentRef Id="_locales_en_GB.pak_59d4f9d2_0af7_4890_a3b1_ce049fb8767d" />
+        <ComponentRef Id="_locales_en_US.pak_92a20d33_655a_4122_b9b0_4d1a00782ac1" />
+        <ComponentRef Id="_locales_es_419.pak_1b046b0f_3826_446b_9b88_0cc758cce495" />
+        <ComponentRef Id="_locales_es.pak_d4010842_7f6b_407e_9132_c9912023fb6f" />
+        <ComponentRef Id="_locales_et.pak_edbf8dd9_20be_4f6c_8584_36059111e01b" />
+        <ComponentRef Id="_locales_fa.pak_fb57252a_e10f_460f_aa58_704ab9ed046d" />
+        <ComponentRef Id="_locales_fi.pak_c9f493d3_995d_465e_bd46_0730dfb030ff" />
+        <ComponentRef Id="_locales_fil.pak_8e5299f7_d60e_44e3_b146_eb42bb85bf7f" />
+        <ComponentRef Id="_locales_fr.pak_aa473243_76e3_4abb_bc7c_5b7ace3f79ed" />
+        <ComponentRef Id="_locales_gu.pak_6d453831_527f_4677_a5e2_0e036045ebfe" />
+        <ComponentRef Id="_locales_he.pak_f98b4584_77c3_458d_ac17_ab259804174c" />
+        <ComponentRef Id="_locales_hi.pak_a8d0860c_d398_431a_b6e0_a4ee8dd3db18" />
+        <ComponentRef Id="_locales_hr.pak_ea4da7c9_31c6_4ab2_8656_1da76299529d" />
+        <ComponentRef Id="_locales_hu.pak_2f88841a_faa5_4f54_81b3_e64832856208" />
+        <ComponentRef Id="_locales_id.pak_dee0094a_7bb7_404f_b24e_875ac69423f9" />
+        <ComponentRef Id="_locales_it.pak_0e2e19ae_907f_4dea_b1b9_1e8243082693" />
+        <ComponentRef Id="_locales_ja.pak_633cbc57_e535_4dd4_9ca8_a7879abeb83e" />
+        <ComponentRef Id="_locales_kn.pak_e1c23c48_a172_43dd_8fe1_80d0f79849c7" />
+        <ComponentRef Id="_locales_ko.pak_8491a008_2f6f_4c46_9102_d515767f86af" />
+        <ComponentRef Id="_locales_lt.pak_c13e5a42_7138_4072_a9e6_fb038af44397" />
+        <ComponentRef Id="_locales_lv.pak_4e41722f_44e0_49cb_86cc_ffb78e36f71e" />
+        <ComponentRef Id="_locales_ml.pak_a67e2662_3b53_41a4_ae47_e74c58f0f362" />
+        <ComponentRef Id="_locales_mr.pak_d9e1a821_dd67_4fb6_a000_c84aa2850f1e" />
+        <ComponentRef Id="_locales_ms.pak_2485579c_24bd_42c1_9c72_530a9957cf8b" />
+        <ComponentRef Id="_locales_nb.pak_1f46f470_8264_4519_a589_0d86e8c8858b" />
+        <ComponentRef Id="_locales_nl.pak_9070abdd_235f_46a9_bc64_00af6a137b8f" />
+        <ComponentRef Id="_locales_pl.pak_0e0db0d8_ef4c_4b3f_a7b1_3035786a4a14" />
+        <ComponentRef Id="_locales_pt_BR.pak_a4b72a71_be6c_4893_9cb2_d6715162a068" />
+        <ComponentRef Id="_locales_pt_PT.pak_03e705a2_742f_434f_aa6b_6ddd7849c59a" />
+        <ComponentRef Id="_locales_ro.pak_52c8326d_6894_4809_936c_8d9261dfeca2" />
+        <ComponentRef Id="_locales_ru.pak_fb2a0363_4b71_44f5_aada_e13b6686fbb7" />
+        <ComponentRef Id="_locales_sk.pak_afbf779e_a92c_4c34_aecb_e7c857885583" />
+        <ComponentRef Id="_locales_sl.pak_ce29b1b4_2b94_4d5b_86f0_c7b9171958ee" />
+        <ComponentRef Id="_locales_sr.pak_2345af30_ff28_49b1_b8a8_8cac16c8278b" />
+        <ComponentRef Id="_locales_sv.pak_6309aa88_f7da_4ffc_81a6_0d113d34e231" />
+        <ComponentRef Id="_locales_sw.pak_5232eacc_5789_4029_ad94_7b15347835b2" />
+        <ComponentRef Id="_locales_ta.pak_8c82068d_a41c_4ca3_af4e_dfa7ac02a9ec" />
+        <ComponentRef Id="_locales_te.pak_f0a3855e_2893_410d_b990_53feddf89497" />
+        <ComponentRef Id="_locales_th.pak_26deafb0_cf3d_412e_800d_22107a14fda2" />
+        <ComponentRef Id="_locales_tr.pak_0b9f658d_188a_49d7_ae45_702843e7aa7e" />
+        <ComponentRef Id="_locales_uk.pak_a1f12c12_d018_42b0_ab8f_e8a3f98b659e" />
+        <ComponentRef Id="_locales_vi.pak_d903e88a_8a42_40de_a748_0d91eda75632" />
+        <ComponentRef Id="_locales_zh_CN.pak_256c05b7_2b84_40f2_aeb4_d9e2e89015cc" />
+        <ComponentRef Id="_locales_zh_TW.pak_6a308578_85d0_4207_b4d9_81b0aed4e140" />
+        <ComponentRef Id="_build.yml_7ef61204_34b9_4c19_ac1c_88d673322c8d" />
+        <ComponentRef Id="_browser.js_d98c841e_7214_4528_98a6_9c3cc7205278" />
+        <ComponentRef Id="_debug.js_db33b790_edee_443c_ac91_e3dff2ae0379" />
+        <ComponentRef Id="_index.js_397c7ee6_5ce6_4a9a_9dd0_529440bb7ef2" />
+        <ComponentRef Id="_inspector_log.js_735e54ef_6866_4aa4_a07e_b3ca98592fce" />
+        <ComponentRef Id="_node.js_7db6664b_81fb_4c3c_b788_6877b1018ee0" />
+        <ComponentRef Id="_.coveralls.yml_382be2be_4c4c_4e0a_b2f8_ca192660045b" />
+        <ComponentRef Id="_.eslintrc_14a48722_7b7d_4aa3_bb17_9118be4f964f" />
+        <ComponentRef Id="_.npmignore_0a91f4e4_c24c_4887_9030_452227111bab" />
+        <ComponentRef Id="_.travis.yml_d9e07513_2cb5_461d_b0c0_9e4eb4435496" />
+        <ComponentRef Id="_CHANGELOG.md_ae6bdbf4_ea95_49d7_a726_b2607f360b89" />
+        <ComponentRef Id="_LICENSE_3bb72a74_07e2_4819_915d_760f9af44825" />
+        <ComponentRef Id="_Makefile_0ae6c62c_7839_4632_b103_0dc7b3ea48cd" />
+        <ComponentRef Id="_README.md_a9e27627_3346_4738_b012_d148fac38fa6" />
+        <ComponentRef Id="_component.json_7ba5b048_d292_433c_a91f_895bc75a429a" />
+        <ComponentRef Id="_karma.conf.js_5dfa550e_5288_431d_815f_ec69fe4346ac" />
+        <ComponentRef Id="_node.js_66924c35_8a44_4ba5_adb2_b9e3d9de2e96" />
+        <ComponentRef Id="_package.json_c401a6d8_72bb_4ef1_ba4b_88f1386e2fd1" />
+        <ComponentRef Id="_docs.yml_d464f815_90eb_4b77_8c1d_5cd0f30a1446" />
+        <ComponentRef Id="_FUNDING.yml_3201c196_4cf3_4729_853f_8e16e5ca2c5c" />
+        <ComponentRef Id="_master.json_c64ef368_e665_4bc0_823d_571e0fa72ad8" />
+        <ComponentRef Id="_index.js_78ad82cc_1fba_418c_9b01_85ed189884e7" />
+        <ComponentRef Id="_ipc.js_e434ed81_359e_407f_ac51_bf6b204277d8" />
+        <ComponentRef Id="_websocket.js_426c92ef_c597_4a30_b776_ac46919cc2de" />
+        <ComponentRef Id="_client.js_214f6da7_3ff9_453e_b432_785b3d72ee68" />
+        <ComponentRef Id="_constants.js_c2fea04e_7460_4ec5_bcf8_942abe44ccc2" />
+        <ComponentRef Id="_index.js_3164d5b8_1ca9_4400_a94d_1f5d4ad11aaf" />
+        <ComponentRef Id="_util.js_5668bc8a_d273_41e3_87d2_a7e89a39ad70" />
+        <ComponentRef Id="_.eslintrc.js_23fd9631_46d7_4397_b1b5_54fc83ff09f7" />
+        <ComponentRef Id="_README.md_171d9c0e_b641_4df4_b0b3_3a6dd4336a15" />
+        <ComponentRef Id="_browser.js_d322213e_b331_429b_a28b_35ceef65fc9a" />
+        <ComponentRef Id="_package.json_a67f0559_19a5_480f_b326_d31df403db6c" />
+        <ComponentRef Id="_index.js_331d90ff_6f04_479f_96e3_4cdb848c3c7b" />
+        <ComponentRef Id="_license_8855e095_2194_4359_adb5_2bc4882f1601" />
+        <ComponentRef Id="_package.json_bc39563f_8319_4dcb_812a_069fca181bd9" />
+        <ComponentRef Id="_readme.md_675d596b_e250_4057_8251_3b6a45492ef6" />
+        <ComponentRef Id="_index.test.js_75bf73e5_c4ce_4217_8313_a9e91c8f9097" />
+        <ComponentRef Id="_mocha.opts_048a91a1_a276_4c05_bc15_f37a01c96ca3" />
+        <ComponentRef Id="_.eslintrc_87446e21_62e7_48db_84b5_c3d132b35e58" />
+        <ComponentRef Id="_.jsfmtrc_b202e642_cb75_44be_aa44_b5bbd04190b1" />
+        <ComponentRef Id="_.npmignore_4d9dede9_1776_4c86_a964_5a92fd1cc734" />
+        <ComponentRef Id="_.travis.yml_1ad8a4e6_1557_452a_857c_a01b6684db0a" />
+        <ComponentRef Id="_LICENSE_f0190fc2_f236_466b_92e0_7c2b82bc6a68" />
+        <ComponentRef Id="_README.md_b54c1532_0559_46a2_a159_36dfd8f77b5a" />
+        <ComponentRef Id="_appveyor.yml_5d928417_03a5_405e_be23_f334150ed80a" />
+        <ComponentRef Id="_index.js_e3aafffe_663f_4025_95b5_25f009170355" />
+        <ComponentRef Id="_package.json_fde07291_cdff_464c_9b74_1683984095e5" />
+        <ComponentRef Id="_exe_icon_extractor.node_1e132f12_6be0_4574_8c5e_5b9b139ba182" />
+        <ComponentRef Id="_CL.command.1.tlog_b69000c7_7526_4cb4_ad3a_4833f648dee1" />
+        <ComponentRef Id="_CL.read.1.tlog_b6c611a2_cb02_4ee4_af1b_2be839f01d5a" />
+        <ComponentRef Id="_CL.write.1.tlog_f81c0a70_d1a4_4c9d_b28c_dc8b0d40dc43" />
+        <ComponentRef Id="_link.command.1.tlog_b55e1894_35bd_478b_bb89_6eb31b5a554f" />
+        <ComponentRef Id="_link.read.1.tlog_e10213e9_4df1_4a89_a54b_c25ccb8edbf6" />
+        <ComponentRef Id="_link.write.1.tlog_b917f51c_5f34_45aa_a500_7fab4fd4de0e" />
+        <ComponentRef Id="_module.lastbuildstate_46223488_4d76_485c_af27_0853bb420257" />
+        <ComponentRef Id="_module.write.1u.tlog_8ed090fc_b7eb_40fe_8cd8_0b78dab009bb" />
+        <ComponentRef Id="_module.obj_b3cb4f10_b330_4bff_9549_8eab86a4b107" />
+        <ComponentRef Id="_module.node.recipe_df8f45c8_3677_4e18_b57c_f10423e07455" />
+        <ComponentRef Id="_win_delay_load_hook.obj_759aebfc_9906_4386_99c9_815f090ef001" />
+        <ComponentRef Id="_.forge_meta_438a3581_555d_42d0_8d3b_450bb6d312b4" />
+        <ComponentRef Id="_module.exp_6b845046_6eb3_4d03_8e42_4321a1aad56b" />
+        <ComponentRef Id="_module.iobj_699d8173_0a87_49cf_9120_e21ef4ce88d7" />
+        <ComponentRef Id="_module.ipdb_7f70d391_da61_44ee_9386_5012113eea14" />
+        <ComponentRef Id="_module.lib_ea92034a_6969_4e24_a025_f28a078159e7" />
+        <ComponentRef Id="_module.node_aad0b9e5_ddc2_4f8e_bebb_bd4ee9de7090" />
+        <ComponentRef Id="_module.pdb_98d31a20_aacb_41e2_9c55_7fa9c27c58af" />
+        <ComponentRef Id="_binding.sln_25907cbb_0945_4596_9f02_fde05c2df404" />
+        <ComponentRef Id="_config.gypi_04b4f950_084f_4607_ad2f_548f128b74bf" />
+        <ComponentRef Id="_module.vcxproj_8e78d1d9_f8ca_424f_aa73_1ea589d1a04f" />
+        <ComponentRef Id="_module.vcxproj.filters_c3b2fc12_3e73_40d6_9f82_2dfc6bbe6a9c" />
+        <ComponentRef Id="_module.cc_ac6d79c7_0e67_413a_a95e_c6279be9db0d" />
+        <ComponentRef Id="_README.md_79fec260_683a_4d92_8c20_e3af39dedf26" />
+        <ComponentRef Id="_binding.gyp_8ff71d02_43ea_4175_a955_333b36610730" />
+        <ComponentRef Id="_bindings.js_3934c5f5_7e24_4c6f_824c_512fe5597e13" />
+        <ComponentRef Id="_package.json_20604972_c528_475f_9c5d_bf9ee1f0c38f" />
+        <ComponentRef Id="_test.js_8564f399_0760_4a6e_99d6_750760097bb1" />
+        <ComponentRef Id="_commonjs.js_1fb24e3b_cc00_48cb_a342_958a8c7f4609" />
+        <ComponentRef Id="_gh.js_e862b9d4_3cf7_4814_989c_7b6c71c8c54c" />
+        <ComponentRef Id="_index.html_31e3701b_4487_48fb_887f_8cb97288ada9" />
+        <ComponentRef Id="_index.js_4983d58a_5612_4b55_9a2b_0db80d1a2765" />
+        <ComponentRef Id="_mocha.opts_9b760472_fcbd_4abd_847c_1762e39fd563" />
+        <ComponentRef Id="_.travis.yml_9e975557_cc8f_4840_9ae4_6884ff164216" />
+        <ComponentRef Id="_README.md_46279527_1f7f_4f04_9d95_e750789e6e8c" />
+        <ComponentRef Id="_bower.json_d07acf1e_f3b1_445c_b58c_b9b0454456cd" />
+        <ComponentRef Id="_index.js_3d0540dc_ea52_4e3b_a819_9e29c3d607c0" />
+        <ComponentRef Id="_package.json_9389ef95_d8c1_4ce9_9398_eb900623644b" />
+        <ComponentRef Id="_index.js_ad62bae5_cfe9_47b0_9158_09950149824b" />
+        <ComponentRef Id="_.travis.yml_8bd2f73a_4863_4f8d_a9d3_9b273b4d0a45" />
+        <ComponentRef Id="_History.md_19b17a45_4e06_48f2_a228_3779cc52373e" />
+        <ComponentRef Id="_LICENSE_MIT_0e68bca8_7efc_42b7_bea7_ed9dde248b18" />
+        <ComponentRef Id="_Readme.md_a48b74a6_8ba9_4e95_b888_6f59e6cb2141" />
+        <ComponentRef Id="_index.js_dc9f652d_3bb2_4850_b8a5_75155b3b7673" />
+        <ComponentRef Id="_package.json_0210f9dd_263e_4dda_a7f3_390be124d1b6" />
+        <ComponentRef Id="_index.js_adee9f01_13c3_413e_a40a_272046bd963e" />
+        <ComponentRef Id="_license.md_30b3db65_68f0_42b9_b5f0_32d6019ead48" />
+        <ComponentRef Id="_package.json_6e453af1_6888_4f4c_a6de_ae4e5ee12807" />
+        <ComponentRef Id="_readme.md_36623538_e606_4833_b2ea_28ef628efed6" />
+        <ComponentRef Id="_index.es.js_3d5af4f9_6935_4c5a_a019_68345b0e72c8" />
+        <ComponentRef Id="_index.js_8de8279a_00c6_4389_9f37_532a171a278d" />
+        <ComponentRef Id="_index.mjs_b8f678b8_84f0_44c0_b8eb_7a7b809a7beb" />
+        <ComponentRef Id="_CHANGELOG.md_ad8ab9a3_e2e7_49d2_9621_227b42e70f96" />
+        <ComponentRef Id="_LICENSE.md_9ea32e3e_fb66_45dc_89b2_c26b287a7e36" />
+        <ComponentRef Id="_README.md_a21b545f_3525_4925_9bda_02fb3cb79fc9" />
+        <ComponentRef Id="_browser.js_eabb40d1_b729_4cca_ac31_78f596bad183" />
+        <ComponentRef Id="_package.json_450bd1e7_a766_4e3b_a4a5_c7e727e6279d" />
+        <ComponentRef Id="_config.yml_2673eeeb_d4f8_44d0_bc75_5c6391faf443" />
+        <ComponentRef Id="_index.js_9cf83c30_e31c_4a1d_8852_503548415ed8" />
+        <ComponentRef Id="_license.md_4ddcb647_173e_443c_90cd_13bc8354471f" />
+        <ComponentRef Id="_package.json_168a9d0e_b3ae_4e0c_ae8f_161a47a8af60" />
+        <ComponentRef Id="_readme.md_53bc03a0_6313_44fe_a0e3_66ddf3b3e5f8" />
+        <ComponentRef Id="_index.test_d.ts_0110ac8a_87cb_4724_bc53_bfb06f1ccab9" />
+        <ComponentRef Id="_index.test.js_e2ffe483_3cdd_4387_9cb7_4359c787e474" />
+        <ComponentRef Id="_.releaserc.json_f4f00fe6_9315_465b_bcff_468a9ea5909d" />
+        <ComponentRef Id="_LICENSE_8f6c0ad8_cb06_403a_9333_eb80eed16904" />
+        <ComponentRef Id="_index.d.ts_5a4f6af0_cac6_447a_a131_b381772c116a" />
+        <ComponentRef Id="_index.js_33f60ddc_e226_449a_929e_771457528916" />
+        <ComponentRef Id="_package.json_0e9b4b92_569e_40e7_950b_da268fbc7d66" />
+        <ComponentRef Id="_readme.md_ef76b36b_d85e_47ae_95ed_8883fd8a1153" />
+        <ComponentRef Id="_screenshot.png_a7fdb1b1_5733_4a64_9623_81edc43cfd14" />
+        <ComponentRef Id="_buffer_util.js_15e9f545_e11b_4566_8587_1fcf6b216a5e" />
+        <ComponentRef Id="_constants.js_37d0175d_409c_452c_86ab_c618f98cb842" />
+        <ComponentRef Id="_event_target.js_0d862c7d_4260_4797_8524_bbe2ff24fd48" />
+        <ComponentRef Id="_extension.js_634c76a2_64af_4377_9ea4_f7af87a46a01" />
+        <ComponentRef Id="_limiter.js_b5b99bbb_7426_4a5b_85e6_f8337bbeffd3" />
+        <ComponentRef Id="_permessage_deflate.js_e20fa4bc_4fd6_4792_9ea1_c70cff560b3c" />
+        <ComponentRef Id="_receiver.js_89fec797_d6c9_4a94_967e_88e58232bd9b" />
+        <ComponentRef Id="_sender.js_34ad8768_d0f5_4ea6_83b7_db73309dd940" />
+        <ComponentRef Id="_stream.js_d308642f_8f07_4ed3_b5d5_e97c5a3854e3" />
+        <ComponentRef Id="_validation.js_205bb3f0_b622_4f23_b860_ee646eb60d09" />
+        <ComponentRef Id="_websocket_server.js_f03f6c2b_28a8_4695_a13a_585c76bedac9" />
+        <ComponentRef Id="_websocket.js_defa89a8_5a86_438e_90a2_95db38738fd8" />
+        <ComponentRef Id="_LICENSE_054459aa_87b2_484f_8392_401290e2a8b4" />
+        <ComponentRef Id="_README.md_7680c0db_30a9_4431_a24b_708ad9290bff" />
+        <ComponentRef Id="_browser.js_133c02b6_0a7b_41c6_9e02_7c1795fbb1cc" />
+        <ComponentRef Id="_index.js_0e758c3b_e869_4d65_a629_e89ab3abf712" />
+        <ComponentRef Id="_package.json_79971739_ba22_4d31_acac_b950706d8280" />
+        <ComponentRef Id="_resources_app_.gitignore_a9ccfbd5_f851_4742_a832_607edf38f1cc" />
+        <ComponentRef Id="_resources_app_LICENSE_c7ad012d_c029_4b8d_baeb_d30b6e55026f" />
+        <ComponentRef Id="_resources_app_README.md_35addcf1_064d_44ab_9ece_9c040cb4de97" />
+        <ComponentRef Id="_resources_app_app.js_bfc91951_d391_4484_9e06_ccb006d4af05" />
+        <ComponentRef Id="_resources_app_forge.config.js_152cc232_a2f4_47b9_821e_d055e066b2ae" />
+        <ComponentRef Id="_resources_app_index.css_43f567b1_8417_4ee0_aa80_42617077ddf3" />
+        <ComponentRef Id="_resources_app_index.html_803d477b_2145_4d8d_baaf_e3e58716e707" />
+        <ComponentRef Id="_resources_app_index.js_8bd8a203_b2a2_42f1_9e6b_0f43107f9e81" />
+        <ComponentRef Id="_resources_app_installation.md_a54fbb89_42ba_41e0_b6fb_ab3e0b4cd10c" />
+        <ComponentRef Id="_resources_app_logo.icns_1c3cdd14_d8ed_4125_bac3_e0cbcc2895d5" />
+        <ComponentRef Id="_resources_app_logo.ico_5d8a54c3_4683_44ec_a8a8_4bc6552ca0fb" />
+        <ComponentRef Id="_resources_app_logo.png_d3354e17_b34c_4b0e_b719_ebb52b8b4d06" />
+        <ComponentRef Id="_resources_app_macos_blocked.png_57cc8169_32c6_4fb4_aa7b_d2b84697a7b6" />
+        <ComponentRef Id="_resources_app_macos_open_1.png_2a2a9e20_456b_43d3_8bde_0f0e2149d569" />
+        <ComponentRef Id="_resources_app_macos_open_2.png_a3ea1236_7c24_4cf5_a1cb_a83e60a975ff" />
+        <ComponentRef Id="_resources_app_package.json_25f7eff6_4cb0_4a89_8dbd_29549a44af52" />
+        <ComponentRef Id="_swiftshader_libEGL.dll_224828c2_0e42_486e_9b84_827dc83014d0" />
+        <ComponentRef Id="_swiftshader_libGLESv2.dll_e273ee77_4325_4536_ba6c_f92340b9fe18" />
+        <ComponentRef Id="_LICENSE_d1b2294b_5b52_4722_b57e_0fce36ce597d" />
+        <ComponentRef Id="_LICENSES.chromium.html_f7eb617f_0446_408c_8c72_38fdd9454453" />
+        <ComponentRef Id="_chrome_100_percent.pak_e1d24f2f_c821_4583_8180_6d87c1859898" />
+        <ComponentRef Id="_chrome_200_percent.pak_7cd3a5b8_fc22_4ccb_9728_9991671d8217" />
+        <ComponentRef Id="_d3dcompiler_47.dll_ba4db4de_8959_4b61_a745_9706661ec999" />
+        <ComponentRef Id="_discord_rpc.exe_4f1921d3_507c_46b2_8b9e_92682a64e81a" />
+        <ComponentRef Id="_ffmpeg.dll_23bfaaa5_281c_41ad_9f06_652b9f2f3d08" />
+        <ComponentRef Id="_icudtl.dat_48d70f40_fe0e_4133_94d7_9699c8fa1b3e" />
+        <ComponentRef Id="_libEGL.dll_9291232e_dfc3_4ebb_b92e_4f16a052300d" />
+        <ComponentRef Id="_libGLESv2.dll_f2b444a0_0a09_47cc_aa5e_7884641ece08" />
+        <ComponentRef Id="_resources.pak_33ca5c6f_ea26_4630_898b_0b06a4214b2d" />
+        <ComponentRef Id="_snapshot_blob.bin_378b7906_ad65_47e8_b5e0_c6bc32255883" />
+        <ComponentRef Id="_v8_context_snapshot.bin_377ee9ed_25fc_489b_8949_34e9755cc7ee" />
+        <ComponentRef Id="_version_2b726a6e_cb89_48da_8f48_a4d10fe6ea9b" />
+        <ComponentRef Id="_vk_swiftshader.dll_02d7e604_c121_4614_b5fe_7dd1b2ae15f0" />
+        <ComponentRef Id="_vk_swiftshader_icd.json_5939759d_3b15_48c3_88a8_1d0b3e60711e" />
+        <ComponentRef Id="_vulkan_1.dll_1695ed45_26fd_4039_977d_54c1b41c7e0f" />
+        <ComponentRef Id="_discord_rpc.exe_a94e80d2_69b0_43e5_97b9_9d9aac8aae07" />
+        <ComponentRef Id="_.installInfo.json_333a81d3_7857_4dd7_88c9_ff351fe20084" />
+        <ComponentRef Id="RegistryInstallPath" />
+        <ComponentRef Id="UninstallDisplayName" />
+        <ComponentRef Id="UninstallPublisher" />
+        <ComponentRef Id="UninstallDisplayVersion" />
+        <ComponentRef Id="UninstallModifyString" />
+        <ComponentRef Id="UninstallString" />
+        <ComponentRef Id="UninstallDisplayIcon" />
+        <ComponentRef Id="ApplicationShortcut" />
+        <ComponentRef Id="DesktopShortcut" />
+        <ComponentRef Id="PurgeOnUninstall" />
+      </Feature> 
+    </Feature> 
+  </Product>
+</Wix>
