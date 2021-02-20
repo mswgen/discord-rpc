@@ -88,7 +88,9 @@ window.addEventListener('load', () => {
                 if (document.querySelector('#state').value == '') return alert('state 값을 입력해주세요');
                 if (document.querySelector('#details').value == '') return alert('details 값을 입력해주세요');
                 if (document.querySelector('#state').value.length < 2) return alert('state 값은 2자리 이상이어야 해요');
-                if (document.querySelector('#details').value.length < 2) return alert('details 값은 2자리 이상이어야 해요');
+                if (document.querySelector('#partyMax').value && parseInt(document.querySelector('#partyMax').value) < 1) return alert('전체 파티 인원은 1 이상이어야 해요');
+                if (document.querySelector('#partySize').value && parseInt(document.querySelector('#partySize').value) < 1) return alert('현재 파티 인원은 1 이상이어야 해요');
+                if (document.querySelector('#joinSecret').value && document.querySelector('#joinSecret').value.length < 2) return alert('참가 비밀 값은 2자리 이상이어야 해요');
                 client.setActivity({
                     state: document.querySelector('#state').value,
                     details: document.querySelector('#details').value,
@@ -96,7 +98,10 @@ window.addEventListener('load', () => {
                     largeImageKey: document.querySelector('#largeImageKey').value,
                     largeImageText: document.querySelector('#largeImageText').value,
                     smallImageKey: document.querySelector('#smallImageKey').value,
-                    smallImageText: document.querySelector('#smallImageText').value
+                    smallImageText: document.querySelector('#smallImageText').value,
+                    partyMax: parseInt(document.querySelector('#partyMax').value),
+                    partySize: parseInt(document.querySelector('#partySize').value),
+                    joinSecret: document.querySelector('#joinSecret').value
                 })
             })
         });

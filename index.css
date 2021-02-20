@@ -155,3 +155,9 @@ rect {
 path {
     transition: fill .3s ease, d .3s ease;
 }
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
