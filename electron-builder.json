@@ -37,5 +37,33 @@
         "description": "An app for setting custom Discord Rich Presence",
         "category": "Utility",
         "artifactName": "discord-rpc.${ext}"
+    },
+    "mac": {
+        "category": "public.app-category-utilities",
+        "target": [
+            {
+                "target": "dmg",
+                "arch": "x64"
+            }
+        ],
+        "icon": "build/icon.icns",
+        "artifactName": "discord-rpc.${ext}"
+    },
+    "dmg": {
+        "title": "${productName}",
+        "icon": "build/volumeIcon.icns",
+        "background": "build/background.tiff",
+        "contents": [
+            {
+                "x": 140,
+                "y": 160
+            },
+            {
+                "x": 380,
+                "y": 160,
+                "type": "link",
+                "path": "/Applications"
+            }
+        ]
     }
 }
