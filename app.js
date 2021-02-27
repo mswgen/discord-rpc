@@ -1,9 +1,9 @@
-const electron = require('electron');
+const { app, BrowserWindow } = require('electron');
 if (require('electron-squirrel-startup')) return app.quit();
 const updater = require('update-electron-app');
 const path = require('path');
 function createWindow() {
-    const window = new electron.BrowserWindow({
+    const window = new BrowserWindow({
         width: 1280,
         height: 720,
         webPreferences: {
@@ -12,15 +12,15 @@ function createWindow() {
     });
     window.loadFile('index.html');
 }
-electron.app.whenReady().then(() => {
+app.whenReady().then(() => {
     createWindow();
     if (process.platform == 'win32') {
         updater({
             notifyUser: false
         });
     }
-    electron.app.on('activate', () => {
-        if (electron.BrowserWindow.getAllWindows().length == 0) createWindow();
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length == 0) createWindow();
     });
-    electron.app.on('window-all-closed', () => electron.app.quit());
+    app.on('window-all-closed', () => app.quit());
 });

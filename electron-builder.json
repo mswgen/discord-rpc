@@ -1,0 +1,24 @@
+{
+    "appId": "kr.co.intteam.${name}",
+    "copyright": "Copyright (c) 2021 Team int",
+    "directories": {
+        "output": "out"
+    },
+    "win": {
+        "target": [
+            {
+                "target": "squirrel",
+                "arch": "x64"
+            },
+            {
+                "target": "dir",
+                "arch": "ia32"
+            }
+        ],
+        "icon": "logo.ico",
+        "artifactName": "DiscordRpcSetup.${ext}"
+    },
+    "squirrelWindows": {
+        "iconUrl": "https://github.com/${u}/${p}/blob/main/logo.ico?raw=true"
+    }
+}
