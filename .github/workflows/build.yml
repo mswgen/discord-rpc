@@ -17,7 +17,7 @@ jobs:
       - name: Install Dependencies
         run: yarn
       - name: Install rpm, fakeroot, and dpkg
-        run: sudo apt update && sudo apt install rpm fakeroot dpkg
+        run: sudo apt update -y && sudo apt install -y rpm fakeroot dpkg
       - name: Build
         run: yarn build:lnx
       - name: Upload Artifacts
