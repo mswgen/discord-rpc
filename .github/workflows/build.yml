@@ -89,7 +89,7 @@ jobs:
       - name: Deploy Linux Packages
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
-          ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: build
           FOLDER: lnx
           CLEAN: true
@@ -102,7 +102,7 @@ jobs:
       - name: Deploy macOS Application
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
-          ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: build
           FOLDER: mac
           CLEAN: false
@@ -113,7 +113,7 @@ jobs:
       - name: Deploy Windows Executable
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
-          ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: build
           FOLDER: squirrel
           CLEAN: false
@@ -124,7 +124,7 @@ jobs:
       - name: Deploy Windows Installer
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
-          ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           BRANCH: build
           FOLDER: msi
           CLEAN: false
