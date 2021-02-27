@@ -84,8 +84,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: lnx
-      - name: Move some files
-        run: mkdir lnx && mv discord-rpc.deb lnx/discord-rpc.deb && mv discord-rpc.rpm lnx/discord-rpc.rpm
+          path: lnx
       - name: Deploy Linux Packages
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
@@ -97,8 +96,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: mac
-      - name: Move some files
-        run: mkdir mac && mv discord-rpc.dmg mac/discord-rpc.dmg
+          path: mac
       - name: Deploy macOS Application
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
@@ -110,6 +108,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: squirrel
+          path: squirrel
       - name: Deploy Windows Executable
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
@@ -121,6 +120,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: msi
+          path: msi
       - name: Deploy Windows Installer
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
