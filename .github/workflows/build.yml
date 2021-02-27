@@ -76,10 +76,6 @@ jobs:
     needs: [buildLnx, buildMac, buildWin]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
       - name: Download Linux Artifacts
         uses: actions/download-artifact@v2
         with:
@@ -92,9 +88,6 @@ jobs:
           BRANCH: build
           FOLDER: lnx
           CLEAN: true
-      - name: Deploy to PPA
-        run: |
-          git checkout
       - name: Download macOS Artifacts
         uses: actions/download-artifact@v2
         with:
