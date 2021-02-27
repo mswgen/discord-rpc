@@ -1,0 +1,562 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <!-- http://wixtoolset.org/documentation/manual/v3/xsd/wix/product.html -->
+  <Product Id="683F414A-4C83-4985-986E-F73E586C92A8" 
+           UpgradeCode="bc8c1203-a492-4822-846c-0abad9de739f"
+           Name = "Discord RPC (Machine - MSI)"
+           Version="1.1.5.0"
+           Manufacturer="Team int"
+           Language="1033">
+    <!-- Only run this installer on Windows 7 or up (or if it"s already installed, I guess) -->
+    <!-- <Condition Message="This application is only supported on Windows 7 or higher.">
+      <![CDATA[Installed OR (VersionNT >= 601)]]>
+    </Condition> -->
+    <!-- http://wixtoolset.org/documentation/manual/v3/xsd/wix/package.html -->
+    <Package InstallerVersion="405"
+             Compressed="yes"
+             Comments="Windows Installer Package"
+             Platform="x86"/>
+    <!-- Don't allow downgrades -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A later version of this product is already installed. Setup will now exit."/>
+    <!-- This will hide our Uninstall entry in Apps & Features. We doing this so
+    we can write our own which we can better control. -->
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" />
+    <!-- While the MSI package is hidden in Apps & Features, it can still be queried
+    via PowerShell and other means. To differentiate we give the public entry a slightly
+    different name to make admins life easier.  -->
+    <Property Id="VisibleProductName" Value="Discord RPC (Machine)" />
+    <!-- Signals Single Package Authoring. This pacakge can pe installed perMachine
+    or perUser. The mode is determined by the property below. -->
+    <Property Id="ALLUSERS" Secure="yes" Value="2" />
+    <!-- Tells the package to install perUser or perMachine. In case of perUser, all
+    files will be redirected to the user profile and all registry entries to HKCU. -->
+    <Property Id="MSIINSTALLPERUSER" Secure="yes" Value="0" />
+    <!-- Overides the default install mode. It solves a problem where
+    individual packaged files that have the same version as in previous
+    installed App version will be deleted if the files are in use during
+    this upgrade. Unfortunately this causes an ICE 40 warning during linking. -->
+    <Property Id="REINSTALLMODE" Value="emus" />
+    <!-- Overrides the default reboot behavior if files are in use during the upgrade.
+     This way no unpxecpted reboot will happpen.-->
+    <Property Id="REBOOT" Value="ReallySuppress" />
+    <!-- A property that holds the intall path and is needed to delete all files on
+    uninstall, even if they are not wriiten as part of this MSI. The value comes from a 
+    registry we set on install.-->
+    <Property Id="INSTALLLEVEL" Value="2" />
+    <!-- Allows to customize the Windows user group that gets access rights on
+    the install folder in cas the auto-updater is installed. User that run the App
+    must be part of that user group to be able to auto-update. -->
+    <Property Id="UPDATERUSERGROUP" Value="Users" />
+    <!-- A property to define whether the auto-updater is enabled when the
+    feature gets installed. This way the update can be installed but also be disabled
+    by overwriting the default value.  -->
+    <Property Id="AUTOUPDATEENABLED" Value="1" />
+    <!-- Necessary registry search to find the install path which is used by the
+    PurgeOnUninstall action. Since this package can be installed perUser or perMachine,
+    we have to look in both places. First successful search wins. -->
+    <Property Id="INSTALLPATH">
+      <RegistrySearch Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq"
+                      Root="HKCU" 
+                      Type="raw"
+                      Id="INSTALLPATH_REGSEARCH_HKCU"
+                      Name="InstallPath"
+                      Win64="no"/>
+      <RegistrySearch Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq"
+                      Root="HKLM" 
+                      Type="raw"
+                      Id="INSTALLPATH_REGSEARCH_HKLM"
+                      Name="InstallPath"
+                      Win64="no"/>
+    </Property>
+    <!-- Lets change the product name depending on the perUser installMode. 
+    This way the user and admins can see in which scope the MSI was installed. -->
+    <SetProperty Action="SetVisibleProductName" Id="VisibleProductName" Sequence="both" Before="AppSearch"  Value="Discord RPC (User)">
+      <![CDATA[MSIINSTALLPERUSER = "1"]]>
+    </SetProperty>
+    <!-- Again we give thee MSI generaten entry a slightly different name to help 
+    differentiate between the public one and the invisible one. -->
+    <SetProperty Action="SetProductName" Id="ProductName" Sequence="both" Before="AppSearch"  Value="Discord RPC (User - MSI)">
+      <![CDATA[MSIINSTALLPERUSER = "1"]]>
+    </SetProperty>
+
+    <Media Id="1" Cabinet="product.cab" EmbedCab="yes"/>
+
+    <UI Id="UserInterface">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WixUI_Mode" Value="FeatureTree" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg">NOT Installed</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1">Installed</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2">NOT Installed</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="1">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">Installed AND PATCH</Publish>
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="ChangeButton" Event="NewDialog" Value="CustomizeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+    </UI>
+    <UIRef Id="WixUI_Common" />
+
+
+    <!-- Step 2: Add files and directories -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+       <!-- Installation files to %PROGRAMFILES% -->
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="APPLICATIONROOTDIRECTORY" Name="Discord RPC">
+          <Directory Id="__1f931e39_b9ce_4fc9_8cad_9715a24214c2" Name="app-1.1.5">
+            <Directory Id="_locales_34c1c582_8893_4e31_8540_c148ea5fbbaf" Name="locales">
+              <Component Id="_locales_am.pak_87ea3541_94ac_43d4_9c7d_926d09b862a5" Guid="20597be1-b2ba-4a01-8f26-e956ca6d7bbe" Win64="no">
+                <File Name="am.pak" Id="_locales_am.pak_87ea3541_94ac_43d4_9c7d_926d09b862a5" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\am.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ar.pak_8635b2ef_9373_420c_aff4_057e6b6883b2" Guid="823a5f54-bc45-40c5-8ab5-c30529dfd7f7" Win64="no">
+                <File Name="ar.pak" Id="_locales_ar.pak_8635b2ef_9373_420c_aff4_057e6b6883b2" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ar.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_bg.pak_c2e6d645_63c6_4fa0_a366_a498d4e8ccc7" Guid="16a90d60-1ff5-43cf-b40f-e65f5326998a" Win64="no">
+                <File Name="bg.pak" Id="_locales_bg.pak_c2e6d645_63c6_4fa0_a366_a498d4e8ccc7" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\bg.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_bn.pak_fd941b22_03e0_4a09_be33_a38ca8759452" Guid="cf73ecd3-8f58-439e-a64d-fcf0fbd602f5" Win64="no">
+                <File Name="bn.pak" Id="_locales_bn.pak_fd941b22_03e0_4a09_be33_a38ca8759452" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\bn.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ca.pak_abb1f6cf_16e7_4f12_a553_7bb2a1cf40e5" Guid="28e7b35f-a2b0-4d00-83bc-6007293a1b25" Win64="no">
+                <File Name="ca.pak" Id="_locales_ca.pak_abb1f6cf_16e7_4f12_a553_7bb2a1cf40e5" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ca.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_cs.pak_79580ef7_f9af_4d1d_88f8_011999bbf7c2" Guid="01cda7ff-dfd9-423a-a31d-5f54b308d328" Win64="no">
+                <File Name="cs.pak" Id="_locales_cs.pak_79580ef7_f9af_4d1d_88f8_011999bbf7c2" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\cs.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_da.pak_35d10a8d_1de3_4c2a_b10a_2521ed31b646" Guid="0ebebb9e-9d49-4391-9331-43fca7470aad" Win64="no">
+                <File Name="da.pak" Id="_locales_da.pak_35d10a8d_1de3_4c2a_b10a_2521ed31b646" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\da.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_de.pak_24f9ede3_14fe_47c3_b538_4399cf82f8e2" Guid="c412dcbf-5540-43f9-96a3-3afef1a5dae9" Win64="no">
+                <File Name="de.pak" Id="_locales_de.pak_24f9ede3_14fe_47c3_b538_4399cf82f8e2" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\de.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_el.pak_9aefc389_8e9f_4f9c_8902_2351ae24fd59" Guid="1010b5dd-e7f4-4602-8ba6-ace405157101" Win64="no">
+                <File Name="el.pak" Id="_locales_el.pak_9aefc389_8e9f_4f9c_8902_2351ae24fd59" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\el.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_en_GB.pak_e0ed7684_c969_4fcd_be05_ab5fb696e248" Guid="9279956e-0e51-4266-a703-0c2157357f43" Win64="no">
+                <File Name="en-GB.pak" Id="_locales_en_GB.pak_e0ed7684_c969_4fcd_be05_ab5fb696e248" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\en-GB.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_en_US.pak_b4bf1c96_cea6_449a_b8e5_904315e12789" Guid="de27480e-1597-4a90-885f-ab5b0ce4b9f6" Win64="no">
+                <File Name="en-US.pak" Id="_locales_en_US.pak_b4bf1c96_cea6_449a_b8e5_904315e12789" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\en-US.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_es_419.pak_96e4bb56_9771_4ce8_b939_c91ad63f3a83" Guid="0fc432f6-4105-4aff-8c41-f3914fc152c3" Win64="no">
+                <File Name="es-419.pak" Id="_locales_es_419.pak_96e4bb56_9771_4ce8_b939_c91ad63f3a83" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\es-419.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_es.pak_50699d77_5192_4fb3_a6b1_7d3073dc2cbe" Guid="12ffafe2-e3b4-45fd-91fb-5310017e948f" Win64="no">
+                <File Name="es.pak" Id="_locales_es.pak_50699d77_5192_4fb3_a6b1_7d3073dc2cbe" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\es.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_et.pak_805b728d_4cad_46a0_9fa3_c896cdb8c21c" Guid="23e8d901-e02b-4b76-8247-12f2195359cc" Win64="no">
+                <File Name="et.pak" Id="_locales_et.pak_805b728d_4cad_46a0_9fa3_c896cdb8c21c" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\et.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fa.pak_72aa358e_fcbf_4d33_9f72_6117b67424e3" Guid="33d3f039-a169-47ca-9a3d-5b4507fdb69a" Win64="no">
+                <File Name="fa.pak" Id="_locales_fa.pak_72aa358e_fcbf_4d33_9f72_6117b67424e3" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\fa.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fi.pak_cfc8a917_1b35_4b46_8eed_04a0244e002c" Guid="48c4aa99-d489-4398-a83e-7c7d3c15d2d7" Win64="no">
+                <File Name="fi.pak" Id="_locales_fi.pak_cfc8a917_1b35_4b46_8eed_04a0244e002c" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\fi.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fil.pak_779f1e5b_2457_449a_bdee_8350d29054b3" Guid="65069ae5-7b83-40d8-9f02-b61bcedd0da1" Win64="no">
+                <File Name="fil.pak" Id="_locales_fil.pak_779f1e5b_2457_449a_bdee_8350d29054b3" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\fil.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_fr.pak_15203042_b6cd_4c8a_82f1_9338716d1263" Guid="97e37c57-2594-443b-9ef1-79005f8c92f8" Win64="no">
+                <File Name="fr.pak" Id="_locales_fr.pak_15203042_b6cd_4c8a_82f1_9338716d1263" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\fr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_gu.pak_86f80261_98aa_4f68_a29d_fd88fcbeb480" Guid="1382182e-09a5-4037-96ef-c0c7960a02af" Win64="no">
+                <File Name="gu.pak" Id="_locales_gu.pak_86f80261_98aa_4f68_a29d_fd88fcbeb480" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\gu.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_he.pak_72ef36ec_b406_4ce5_9885_f8136479f20a" Guid="b5f96fe0-7338-4971-b816-efd63aa5f4f8" Win64="no">
+                <File Name="he.pak" Id="_locales_he.pak_72ef36ec_b406_4ce5_9885_f8136479f20a" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\he.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_hi.pak_ce0459fd_38b1_4ab8_b3a9_9e53d3d439ee" Guid="447e9ad3-8088-4c85-be00-95447656271e" Win64="no">
+                <File Name="hi.pak" Id="_locales_hi.pak_ce0459fd_38b1_4ab8_b3a9_9e53d3d439ee" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\hi.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_hr.pak_3692d7c3_a539_4a02_acb4_b42b5a9bcd2a" Guid="8d0737e3-8e7b-44ca-8ed7-93138a738940" Win64="no">
+                <File Name="hr.pak" Id="_locales_hr.pak_3692d7c3_a539_4a02_acb4_b42b5a9bcd2a" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\hr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_hu.pak_03ef43d7_6ab9_4682_9441_2a015f06a774" Guid="5d95cd7e-e320-4c2e-bb21-f91b785ed51f" Win64="no">
+                <File Name="hu.pak" Id="_locales_hu.pak_03ef43d7_6ab9_4682_9441_2a015f06a774" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\hu.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_id.pak_3aae86b5_4936_469e_a8b1_d8df23ac019d" Guid="9da671f9-d896-47fb-b692-7df15cd97fee" Win64="no">
+                <File Name="id.pak" Id="_locales_id.pak_3aae86b5_4936_469e_a8b1_d8df23ac019d" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\id.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_it.pak_94cbd58a_dbfc_4c54_847a_338a934a9423" Guid="18b564d8-99aa-4c15-86a3-ca1bfe7248f5" Win64="no">
+                <File Name="it.pak" Id="_locales_it.pak_94cbd58a_dbfc_4c54_847a_338a934a9423" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\it.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ja.pak_fe5912e2_0f96_4acb_9888_7defdfbef10e" Guid="079b1129-8a80-4983-845a-6ff98323bcb5" Win64="no">
+                <File Name="ja.pak" Id="_locales_ja.pak_fe5912e2_0f96_4acb_9888_7defdfbef10e" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ja.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_kn.pak_cca313a5_43cd_489f_8c2c_3b4b7b1106ab" Guid="ffa3ca7c-ad1f-4205-a8be-5fe96b0a70e6" Win64="no">
+                <File Name="kn.pak" Id="_locales_kn.pak_cca313a5_43cd_489f_8c2c_3b4b7b1106ab" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\kn.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ko.pak_948463d8_dd09_4d37_9a0d_0edf33306703" Guid="43152648-9ef7-422b-8390-00b74eed9008" Win64="no">
+                <File Name="ko.pak" Id="_locales_ko.pak_948463d8_dd09_4d37_9a0d_0edf33306703" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ko.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_lt.pak_3ef65564_db59_40ad_b59e_df2a47501356" Guid="ac66da45-e593-4606-ae9a-1577032b4b56" Win64="no">
+                <File Name="lt.pak" Id="_locales_lt.pak_3ef65564_db59_40ad_b59e_df2a47501356" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\lt.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_lv.pak_065a2e8b_53b3_4b40_b818_67201fa0a238" Guid="51f4dd85-76c4-4952-9a8e-3464909df966" Win64="no">
+                <File Name="lv.pak" Id="_locales_lv.pak_065a2e8b_53b3_4b40_b818_67201fa0a238" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\lv.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ml.pak_15474266_9312_4508_ad6a_50f415a016f0" Guid="b1c859f8-c411-47b1-a0ca-c0084a2311b6" Win64="no">
+                <File Name="ml.pak" Id="_locales_ml.pak_15474266_9312_4508_ad6a_50f415a016f0" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ml.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_mr.pak_43d8b089_1aec_49e1_9c88_36a449a78c44" Guid="0221d249-27fa-4eb7-a704-0b047b87e8cc" Win64="no">
+                <File Name="mr.pak" Id="_locales_mr.pak_43d8b089_1aec_49e1_9c88_36a449a78c44" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\mr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ms.pak_9121453b_54b2_46ec_b005_f046e87a409b" Guid="107f0dfa-5d68-4b2b-a15c-650169901ff9" Win64="no">
+                <File Name="ms.pak" Id="_locales_ms.pak_9121453b_54b2_46ec_b005_f046e87a409b" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ms.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_nb.pak_dbe11ee5_b8fb_4f26_99ce_abfc2ba94b3c" Guid="9d02557d-6421-47ea-8eb7-bf6ca664a47f" Win64="no">
+                <File Name="nb.pak" Id="_locales_nb.pak_dbe11ee5_b8fb_4f26_99ce_abfc2ba94b3c" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\nb.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_nl.pak_e3fec097_5204_46ec_b5f9_12afd7c517fa" Guid="782763fb-10ca-4adc-8ed7-efd6102eefac" Win64="no">
+                <File Name="nl.pak" Id="_locales_nl.pak_e3fec097_5204_46ec_b5f9_12afd7c517fa" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\nl.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_pl.pak_756b89e8_85af_4cc4_9355_90a0110ddd9f" Guid="41d5acb6-e202-4a56-bb79-00330408ca13" Win64="no">
+                <File Name="pl.pak" Id="_locales_pl.pak_756b89e8_85af_4cc4_9355_90a0110ddd9f" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\pl.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_pt_BR.pak_ab86be8f_5aa8_4e8c_9e1f_d02ac06b1eab" Guid="5c6fffe3-ab06-4b19-b1b5-ca8300ca6946" Win64="no">
+                <File Name="pt-BR.pak" Id="_locales_pt_BR.pak_ab86be8f_5aa8_4e8c_9e1f_d02ac06b1eab" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\pt-BR.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_pt_PT.pak_1821a181_edbe_490b_8277_2dd3936c4edc" Guid="26f52c54-7138-41ee-b97c-9292278e129d" Win64="no">
+                <File Name="pt-PT.pak" Id="_locales_pt_PT.pak_1821a181_edbe_490b_8277_2dd3936c4edc" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\pt-PT.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ro.pak_653627ff_5edd_4031_8354_875010a2a1d4" Guid="af9e1f7b-4ad0-4e6e-98fc-4579ef0c4d3e" Win64="no">
+                <File Name="ro.pak" Id="_locales_ro.pak_653627ff_5edd_4031_8354_875010a2a1d4" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ro.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ru.pak_120d2bfa_3f77_4320_9cef_03d0c8405983" Guid="88b12a9a-a075-4c41-afae-1ff8e2d975ba" Win64="no">
+                <File Name="ru.pak" Id="_locales_ru.pak_120d2bfa_3f77_4320_9cef_03d0c8405983" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ru.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sk.pak_d538c2f3_2554_4cb1_9f70_90fd99234cb7" Guid="0499256b-9d7c-45b5-9a56-cd6251fc31d2" Win64="no">
+                <File Name="sk.pak" Id="_locales_sk.pak_d538c2f3_2554_4cb1_9f70_90fd99234cb7" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\sk.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sl.pak_58b35149_5329_4637_82d2_9df019de9e3a" Guid="caf3b87a-ef06-4586-9add-9ffa5350abd1" Win64="no">
+                <File Name="sl.pak" Id="_locales_sl.pak_58b35149_5329_4637_82d2_9df019de9e3a" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\sl.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sr.pak_e9936a90_2e30_4c64_a704_3b57758c2a4f" Guid="53f7f9fb-5d55-4d4f-a793-a186b62d54a0" Win64="no">
+                <File Name="sr.pak" Id="_locales_sr.pak_e9936a90_2e30_4c64_a704_3b57758c2a4f" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\sr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sv.pak_50588cb3_8e3f_4da4_94d3_26126112979e" Guid="e9ed10ce-830d-498d-abfa-8a664c7f2924" Win64="no">
+                <File Name="sv.pak" Id="_locales_sv.pak_50588cb3_8e3f_4da4_94d3_26126112979e" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\sv.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_sw.pak_abdd8e02_e0a0_4663_96b1_b079a0d321a6" Guid="af5652ac-458a-4c9a-ab4b-68e3fee8c5ed" Win64="no">
+                <File Name="sw.pak" Id="_locales_sw.pak_abdd8e02_e0a0_4663_96b1_b079a0d321a6" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\sw.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_ta.pak_00e48bae_3038_4350_96b8_df11def13cac" Guid="64a5d0d1-a4fd-4502-b365-d27092ee856a" Win64="no">
+                <File Name="ta.pak" Id="_locales_ta.pak_00e48bae_3038_4350_96b8_df11def13cac" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\ta.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_te.pak_6a57fc02_2cf4_4db0_9ff9_437e9ce87d6e" Guid="b152b1fb-44e9-4f09-8ed0-d3be4094580d" Win64="no">
+                <File Name="te.pak" Id="_locales_te.pak_6a57fc02_2cf4_4db0_9ff9_437e9ce87d6e" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\te.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_th.pak_ebff9de5_a190_4dee_8f9c_1be10fccb5ef" Guid="77bb6cb6-de48-4073-a06f-30c6fb79b46a" Win64="no">
+                <File Name="th.pak" Id="_locales_th.pak_ebff9de5_a190_4dee_8f9c_1be10fccb5ef" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\th.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_tr.pak_9fb92932_927a_44c9_8c00_32d68c89f2de" Guid="51d91b80-eb51-45b9-955d-177a5a314b5a" Win64="no">
+                <File Name="tr.pak" Id="_locales_tr.pak_9fb92932_927a_44c9_8c00_32d68c89f2de" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\tr.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_uk.pak_ae6e64bc_3799_47ee_87b9_8303f1370e28" Guid="6383dbda-6288-4883-9962-56d396b2edfa" Win64="no">
+                <File Name="uk.pak" Id="_locales_uk.pak_ae6e64bc_3799_47ee_87b9_8303f1370e28" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\uk.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_vi.pak_e3927642_d208_496c_9f40_e6fee3fab9c6" Guid="3ecd8f23-b579-4137-a812-7398d1d9c326" Win64="no">
+                <File Name="vi.pak" Id="_locales_vi.pak_e3927642_d208_496c_9f40_e6fee3fab9c6" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\vi.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_zh_CN.pak_1160f3c0_1502_4d1b_bd28_be7d914363c0" Guid="357f2bc9-5965-48bd-adcb-7b6fc2e5bbf8" Win64="no">
+                <File Name="zh-CN.pak" Id="_locales_zh_CN.pak_1160f3c0_1502_4d1b_bd28_be7d914363c0" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\zh-CN.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_locales_zh_TW.pak_66df1c19_d992_4dee_8494_1f8155a51284" Guid="9ee73eb8-1d61-4d4f-9b9c-c49c4a252b63" Win64="no">
+                <File Name="zh-TW.pak" Id="_locales_zh_TW.pak_66df1c19_d992_4dee_8494_1f8155a51284" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\locales\zh-TW.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+            </Directory>
+            <Directory Id="_resources_17dbf401_f298_4fd1_8094_9b8ecc3838da" Name="resources">
+              <Component Id="_resources_app.asar_ef263553_c870_482d_9fa9_8a41a7c68636" Guid="abfd089a-f099-42b1-895a-7bf2c5b64faf" Win64="no">
+                <File Name="app.asar" Id="_resources_app.asar_ef263553_c870_482d_9fa9_8a41a7c68636" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\resources\app.asar" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+            </Directory>
+            <Directory Id="_swiftshader_d32876c8_b7cd_4221_ab62_154a48470969" Name="swiftshader">
+              <Component Id="_swiftshader_libEGL.dll_d095baf8_1176_464b_9d5d_f6c4f26fc68d" Guid="15be71fc-5ad5-4929-8045-355fda9a1d72" Win64="no">
+                <File Name="libEGL.dll" Id="_swiftshader_libEGL.dll_d095baf8_1176_464b_9d5d_f6c4f26fc68d" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\swiftshader\libEGL.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+              <Component Id="_swiftshader_libGLESv2.dll_134b7a11_3659_4b13_b127_ef9d325529c6" Guid="d72ac844-34e9-4beb-bfef-9e7660ab68f8" Win64="no">
+                <File Name="libGLESv2.dll" Id="_swiftshader_libGLESv2.dll_134b7a11_3659_4b13_b127_ef9d325529c6" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\swiftshader\libGLESv2.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+              </Component>
+            </Directory>            <Component Id="_Discord_RPC.exe_50f17800_8b7b_4e28_946d_32c382107aa6" Guid="bd780189-3dea-43dd-a0e0-c252ce0e1e46" Win64="no">
+              <File Name="Discord RPC.exe" Id="_Discord_RPC.exe_50f17800_8b7b_4e28_946d_32c382107aa6" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\Discord RPC.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_LICENSE.electron.txt_7369a274_7b9e_435a_aa4b_6f5e89475f8c" Guid="15ddde8f-1873-4c96-bf30-7647873652b8" Win64="no">
+              <File Name="LICENSE.electron.txt" Id="_LICENSE.electron.txt_7369a274_7b9e_435a_aa4b_6f5e89475f8c" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\LICENSE.electron.txt" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_LICENSES.chromium.html_1119b3d3_f385_4750_a81c_89dbe39d5bbd" Guid="971270e0-7302-4909-a29d-ecabfda80109" Win64="no">
+              <File Name="LICENSES.chromium.html" Id="_LICENSES.chromium.html_1119b3d3_f385_4750_a81c_89dbe39d5bbd" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\LICENSES.chromium.html" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_chrome_100_percent.pak_f40a14b2_c134_4fce_9ec1_45d966c42760" Guid="beb90a90-ada4-4d97-bbd5-d1538d5c7bfc" Win64="no">
+              <File Name="chrome_100_percent.pak" Id="_chrome_100_percent.pak_f40a14b2_c134_4fce_9ec1_45d966c42760" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\chrome_100_percent.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_chrome_200_percent.pak_f4f549eb_1793_4654_be92_a948e6f6f83a" Guid="6ee54915-f3bc-4f62-8b00-9810d39f9f1e" Win64="no">
+              <File Name="chrome_200_percent.pak" Id="_chrome_200_percent.pak_f4f549eb_1793_4654_be92_a948e6f6f83a" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\chrome_200_percent.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_d3dcompiler_47.dll_fbbc100d_6beb_47a5_9298_67d176a8f5dd" Guid="f8ef8245-aebf-4128-a5e7-10bda286e30e" Win64="no">
+              <File Name="d3dcompiler_47.dll" Id="_d3dcompiler_47.dll_fbbc100d_6beb_47a5_9298_67d176a8f5dd" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\d3dcompiler_47.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_ffmpeg.dll_3ba7f740_fef0_4952_a168_2023c8a0fdfb" Guid="779cab0e-3bf6-4f47-9b37-949a10ed0d94" Win64="no">
+              <File Name="ffmpeg.dll" Id="_ffmpeg.dll_3ba7f740_fef0_4952_a168_2023c8a0fdfb" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\ffmpeg.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_icudtl.dat_00143ee5_e3b5_432c_b58f_d56d2fb0929a" Guid="28123bd7-ce5b-4bf5-9a87-c54e22148438" Win64="no">
+              <File Name="icudtl.dat" Id="_icudtl.dat_00143ee5_e3b5_432c_b58f_d56d2fb0929a" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\icudtl.dat" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_libEGL.dll_f9a1fc73_07ee_4754_96b2_977849ccd373" Guid="318deea2-eb9d-4c15-83da-84d35d6c38c2" Win64="no">
+              <File Name="libEGL.dll" Id="_libEGL.dll_f9a1fc73_07ee_4754_96b2_977849ccd373" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\libEGL.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_libGLESv2.dll_0a1c9763_8b01_405a_85a4_0c187837430d" Guid="864e8cd4-db3c-45a8-b4fe-09ed802daeb6" Win64="no">
+              <File Name="libGLESv2.dll" Id="_libGLESv2.dll_0a1c9763_8b01_405a_85a4_0c187837430d" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\libGLESv2.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_resources.pak_d5248172_157d_4be1_9459_6045c0c4e12e" Guid="1ad621e0-9d63-4ef3-b936-ea7fd0662f79" Win64="no">
+              <File Name="resources.pak" Id="_resources.pak_d5248172_157d_4be1_9459_6045c0c4e12e" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\resources.pak" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_snapshot_blob.bin_a440fdfb_4e0a_4ea7_a70d_f94974cb0319" Guid="60c98840-670f-47be-8f82-5d2442da0ad4" Win64="no">
+              <File Name="snapshot_blob.bin" Id="_snapshot_blob.bin_a440fdfb_4e0a_4ea7_a70d_f94974cb0319" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\snapshot_blob.bin" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_v8_context_snapshot.bin_c8773b49_e1b2_46d9_8114_0d253089a6b9" Guid="7c5bbef6-b5f5-46d3-a77c-d59dde136dca" Win64="no">
+              <File Name="v8_context_snapshot.bin" Id="_v8_context_snapshot.bin_c8773b49_e1b2_46d9_8114_0d253089a6b9" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\v8_context_snapshot.bin" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_vk_swiftshader.dll_1f6a0ff5_16c0_4e10_956d_a5b89db3e228" Guid="f39ea3d5-b397-4fe2-9fd0-757bb8718bae" Win64="no">
+              <File Name="vk_swiftshader.dll" Id="_vk_swiftshader.dll_1f6a0ff5_16c0_4e10_956d_a5b89db3e228" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\vk_swiftshader.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_vk_swiftshader_icd.json_2afe44da_8cda_4c41_b0a3_11e97f5cfb84" Guid="b9c53e0e-3705-4410-9288-fe796e46dc40" Win64="no">
+              <File Name="vk_swiftshader_icd.json" Id="_vk_swiftshader_icd.json_2afe44da_8cda_4c41_b0a3_11e97f5cfb84" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\vk_swiftshader_icd.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+            <Component Id="_vulkan_1.dll_35be588d_375f_4204_bbbc_1f68d46a6547" Guid="e80ba91d-3aa4-44a0-b769-f02d34078f33" Win64="no">
+              <File Name="vulkan-1.dll" Id="_vulkan_1.dll_35be588d_375f_4204_bbbc_1f68d46a6547" Source="D:\a\discord-rpc\discord-rpc\out\win-ia32-unpacked\vulkan-1.dll" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+            </Component>
+          </Directory>
+          <Component Id="_Discord_RPC.exe_63d83e5e_29e2_46d6_93eb_2acc240266ec" Guid="ac8a818c-2f69-4a03-b4dc-8bddb2e51c08" Win64="no">
+            <File Name="Discord RPC.exe" Id="_Discord_RPC.exe_63d83e5e_29e2_46d6_93eb_2acc240266ec" Source="C:\Users\RUNNER~1\AppData\Local\Temp\Discord RPCoqRpyS\Discord RPC.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+          </Component>
+          <Component Id="_.installInfo.json_e03b8f12_e56b_43a6_bd14_b2cf5d04b52e" Guid="800f0965-00f8-46b8-ade7-2ec659eea31f" Win64="no">
+            <File Name=".installInfo.json" Id="_.installInfo.json_e03b8f12_e56b_43a6_bd14_b2cf5d04b52e" Source="C:\Users\RUNNER~1\AppData\Local\Temp\.installInfoE4SxR8\.installInfo.json" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+          </Component>
+          <Component Id="_msq.exe_4e9fa4c9_6029_4a34_9e34_61eba69013ad" Guid="9a476a2d-8fb7-4d87-833e-1744b96a37eb" Win64="no">
+            <File Name="Update.exe" Id="_msq.exe_4e9fa4c9_6029_4a34_9e34_61eba69013ad" Source="D:\a\discord-rpc\discord-rpc\node_modules\electron-wix-msi\vendor\msq.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x86"/>
+          </Component>
+          <Component Id="RegistryInstallPath" Guid="97fa9480-d54e-43e4-a38d-040ed7f73576" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="InstallPath" Type="string" Value="[APPLICATIONROOTDIRECTORY]" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallDisplayName" Guid="289c4a02-32ea-4b52-9b67-19a95cd4f948" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="DisplayName" Type="string" Value="[VisibleProductName]" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallPublisher" Guid="8f1d932a-21cb-40c4-8b89-80bf5288a0fa" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="Publisher" Type="string" Value="Team int" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallDisplayVersion" Guid="2c705ae5-05c8-4c7d-9a71-a60808d29da3" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="DisplayVersion" Type="string" Value="1.1.5" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallModifyString" Guid="2ebce4ea-9cac-40ed-a1e7-eed0fcbf5df4" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="ModifyPath" Type="expandable" Value="MsiExec.exe /I {683F414A-4C83-4985-986E-F73E586C92A8}" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallString" Guid="ec1bee01-1cf7-4a40-abda-d970cc90ed67" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="UninstallString" Type="expandable" Value="MsiExec.exe /X {683F414A-4C83-4985-986E-F73E586C92A8}" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="UninstallDisplayIcon" Guid="1665f541-7ab3-4332-9345-72cbbf3fc504" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="DisplayIcon" Type="expandable" Value="[SystemFolder]msiexec.exe" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="SetUninstallDisplayVersionPermissions" Guid="ac604020-942a-4d37-9f61-a55f8f8410d5" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{683F414A-4C83-4985-986E-F73E586C92A8}.msq" ForceCreateOnInstall="yes" ForceDeleteOnUninstall="no">
+              <util:PermissionEx User="[UPDATERUSERGROUP]" GenericAll="yes" ChangePermission='yes' />
+              <RegistryValue Name="DisplayVersion" Type="string" Value="1.1.5" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+          <Component Id="AutoUpdateEnabled" Guid="56afeb61-8b23-4b56-846e-cd354e96b722" Win64="no">
+            <RegistryKey Root="HKMU" Key="SOFTWARE\Team int\Discord RPC" ForceCreateOnInstall="no" ForceDeleteOnUninstall="yes">
+              <RegistryValue Name="AutoUpdate" Type="integer" Value="[AUTOUPDATEENABLED]" KeyPath="yes"/>
+            </RegistryKey>
+          </Component>
+        </Directory>
+      </Directory>
+
+      <!-- Desktop -->
+      <Directory Id="DesktopFolder" Name="Desktop" />
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Team int"/>
+      </Directory>
+    </Directory>
+
+    <!-- Step 3: Add app to Start Menu -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="87ef949a-7b7c-44ee-a169-255e6d84056d" Win64="no">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="Discord RPC"
+                  Description="Discord RPC app"
+                  Target="[APPLICATIONROOTDIRECTORY]Discord RPC.exe"
+                  WorkingDirectory="APPLICATIONROOTDIRECTORY">
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="com.squirrel.discord rpc.discord rpc" />
+        </Shortcut>
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU"
+                       Key="Software\Microsoft\Discord RPC"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+   <!-- Step 4: Add app desktop shortcut --> 
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="ebb77d39-69bb-486e-9a24-134202917a2e" >
+          <Shortcut Id="MyDesktopShortcut"
+                    Name="Discord RPC"
+                    Description="Discord RPC app"
+                    Target="[APPLICATIONROOTDIRECTORY]Discord RPC.exe"
+                    WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+          <RegistryValue Root="HKCU"
+                    Key="Software\Microsoft\Discord RPC"
+                    Name="installed"
+                    Type="integer"
+                    Value="1"
+                    KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
+      <Component Id="SetFolderPermissions" Guid="4561fc46-e52b-4afb-a302-06632a7d1ed6" Win64="no">
+        <CreateFolder>
+          <util:PermissionEx User="[UPDATERUSERGROUP]" GenericAll="yes" />
+        </CreateFolder>
+      </Component>
+    </DirectoryRef>
+
+
+    <!-- Lets cleanup any files that are were not part of the initial install
+    via this MSI. Such as newer versions installed by the auto-updater. -->
+    <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
+      <Component Id="PurgeOnUninstall" Guid="aba2609c-3177-4627-b21e-2be0a0af60ca" Win64="no">
+        <CreateFolder/>
+        <util:RemoveFolderEx On="uninstall" Property="INSTALLPATH" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Complete" Title="Discord RPC (1.1.5)" Description="The complete package." Display="expand" Level="1" ConfigurableDirectory="APPLICATIONROOTDIRECTORY">
+      <!-- Step 5: Tell WiX to install the files -->
+      <Feature Id="MainApplication" Title="Main Application" Level="1" Description="The main components to run the applications." >
+        <ComponentRef Id="_locales_am.pak_87ea3541_94ac_43d4_9c7d_926d09b862a5" />
+        <ComponentRef Id="_locales_ar.pak_8635b2ef_9373_420c_aff4_057e6b6883b2" />
+        <ComponentRef Id="_locales_bg.pak_c2e6d645_63c6_4fa0_a366_a498d4e8ccc7" />
+        <ComponentRef Id="_locales_bn.pak_fd941b22_03e0_4a09_be33_a38ca8759452" />
+        <ComponentRef Id="_locales_ca.pak_abb1f6cf_16e7_4f12_a553_7bb2a1cf40e5" />
+        <ComponentRef Id="_locales_cs.pak_79580ef7_f9af_4d1d_88f8_011999bbf7c2" />
+        <ComponentRef Id="_locales_da.pak_35d10a8d_1de3_4c2a_b10a_2521ed31b646" />
+        <ComponentRef Id="_locales_de.pak_24f9ede3_14fe_47c3_b538_4399cf82f8e2" />
+        <ComponentRef Id="_locales_el.pak_9aefc389_8e9f_4f9c_8902_2351ae24fd59" />
+        <ComponentRef Id="_locales_en_GB.pak_e0ed7684_c969_4fcd_be05_ab5fb696e248" />
+        <ComponentRef Id="_locales_en_US.pak_b4bf1c96_cea6_449a_b8e5_904315e12789" />
+        <ComponentRef Id="_locales_es_419.pak_96e4bb56_9771_4ce8_b939_c91ad63f3a83" />
+        <ComponentRef Id="_locales_es.pak_50699d77_5192_4fb3_a6b1_7d3073dc2cbe" />
+        <ComponentRef Id="_locales_et.pak_805b728d_4cad_46a0_9fa3_c896cdb8c21c" />
+        <ComponentRef Id="_locales_fa.pak_72aa358e_fcbf_4d33_9f72_6117b67424e3" />
+        <ComponentRef Id="_locales_fi.pak_cfc8a917_1b35_4b46_8eed_04a0244e002c" />
+        <ComponentRef Id="_locales_fil.pak_779f1e5b_2457_449a_bdee_8350d29054b3" />
+        <ComponentRef Id="_locales_fr.pak_15203042_b6cd_4c8a_82f1_9338716d1263" />
+        <ComponentRef Id="_locales_gu.pak_86f80261_98aa_4f68_a29d_fd88fcbeb480" />
+        <ComponentRef Id="_locales_he.pak_72ef36ec_b406_4ce5_9885_f8136479f20a" />
+        <ComponentRef Id="_locales_hi.pak_ce0459fd_38b1_4ab8_b3a9_9e53d3d439ee" />
+        <ComponentRef Id="_locales_hr.pak_3692d7c3_a539_4a02_acb4_b42b5a9bcd2a" />
+        <ComponentRef Id="_locales_hu.pak_03ef43d7_6ab9_4682_9441_2a015f06a774" />
+        <ComponentRef Id="_locales_id.pak_3aae86b5_4936_469e_a8b1_d8df23ac019d" />
+        <ComponentRef Id="_locales_it.pak_94cbd58a_dbfc_4c54_847a_338a934a9423" />
+        <ComponentRef Id="_locales_ja.pak_fe5912e2_0f96_4acb_9888_7defdfbef10e" />
+        <ComponentRef Id="_locales_kn.pak_cca313a5_43cd_489f_8c2c_3b4b7b1106ab" />
+        <ComponentRef Id="_locales_ko.pak_948463d8_dd09_4d37_9a0d_0edf33306703" />
+        <ComponentRef Id="_locales_lt.pak_3ef65564_db59_40ad_b59e_df2a47501356" />
+        <ComponentRef Id="_locales_lv.pak_065a2e8b_53b3_4b40_b818_67201fa0a238" />
+        <ComponentRef Id="_locales_ml.pak_15474266_9312_4508_ad6a_50f415a016f0" />
+        <ComponentRef Id="_locales_mr.pak_43d8b089_1aec_49e1_9c88_36a449a78c44" />
+        <ComponentRef Id="_locales_ms.pak_9121453b_54b2_46ec_b005_f046e87a409b" />
+        <ComponentRef Id="_locales_nb.pak_dbe11ee5_b8fb_4f26_99ce_abfc2ba94b3c" />
+        <ComponentRef Id="_locales_nl.pak_e3fec097_5204_46ec_b5f9_12afd7c517fa" />
+        <ComponentRef Id="_locales_pl.pak_756b89e8_85af_4cc4_9355_90a0110ddd9f" />
+        <ComponentRef Id="_locales_pt_BR.pak_ab86be8f_5aa8_4e8c_9e1f_d02ac06b1eab" />
+        <ComponentRef Id="_locales_pt_PT.pak_1821a181_edbe_490b_8277_2dd3936c4edc" />
+        <ComponentRef Id="_locales_ro.pak_653627ff_5edd_4031_8354_875010a2a1d4" />
+        <ComponentRef Id="_locales_ru.pak_120d2bfa_3f77_4320_9cef_03d0c8405983" />
+        <ComponentRef Id="_locales_sk.pak_d538c2f3_2554_4cb1_9f70_90fd99234cb7" />
+        <ComponentRef Id="_locales_sl.pak_58b35149_5329_4637_82d2_9df019de9e3a" />
+        <ComponentRef Id="_locales_sr.pak_e9936a90_2e30_4c64_a704_3b57758c2a4f" />
+        <ComponentRef Id="_locales_sv.pak_50588cb3_8e3f_4da4_94d3_26126112979e" />
+        <ComponentRef Id="_locales_sw.pak_abdd8e02_e0a0_4663_96b1_b079a0d321a6" />
+        <ComponentRef Id="_locales_ta.pak_00e48bae_3038_4350_96b8_df11def13cac" />
+        <ComponentRef Id="_locales_te.pak_6a57fc02_2cf4_4db0_9ff9_437e9ce87d6e" />
+        <ComponentRef Id="_locales_th.pak_ebff9de5_a190_4dee_8f9c_1be10fccb5ef" />
+        <ComponentRef Id="_locales_tr.pak_9fb92932_927a_44c9_8c00_32d68c89f2de" />
+        <ComponentRef Id="_locales_uk.pak_ae6e64bc_3799_47ee_87b9_8303f1370e28" />
+        <ComponentRef Id="_locales_vi.pak_e3927642_d208_496c_9f40_e6fee3fab9c6" />
+        <ComponentRef Id="_locales_zh_CN.pak_1160f3c0_1502_4d1b_bd28_be7d914363c0" />
+        <ComponentRef Id="_locales_zh_TW.pak_66df1c19_d992_4dee_8494_1f8155a51284" />
+        <ComponentRef Id="_resources_app.asar_ef263553_c870_482d_9fa9_8a41a7c68636" />
+        <ComponentRef Id="_swiftshader_libEGL.dll_d095baf8_1176_464b_9d5d_f6c4f26fc68d" />
+        <ComponentRef Id="_swiftshader_libGLESv2.dll_134b7a11_3659_4b13_b127_ef9d325529c6" />
+        <ComponentRef Id="_Discord_RPC.exe_50f17800_8b7b_4e28_946d_32c382107aa6" />
+        <ComponentRef Id="_LICENSE.electron.txt_7369a274_7b9e_435a_aa4b_6f5e89475f8c" />
+        <ComponentRef Id="_LICENSES.chromium.html_1119b3d3_f385_4750_a81c_89dbe39d5bbd" />
+        <ComponentRef Id="_chrome_100_percent.pak_f40a14b2_c134_4fce_9ec1_45d966c42760" />
+        <ComponentRef Id="_chrome_200_percent.pak_f4f549eb_1793_4654_be92_a948e6f6f83a" />
+        <ComponentRef Id="_d3dcompiler_47.dll_fbbc100d_6beb_47a5_9298_67d176a8f5dd" />
+        <ComponentRef Id="_ffmpeg.dll_3ba7f740_fef0_4952_a168_2023c8a0fdfb" />
+        <ComponentRef Id="_icudtl.dat_00143ee5_e3b5_432c_b58f_d56d2fb0929a" />
+        <ComponentRef Id="_libEGL.dll_f9a1fc73_07ee_4754_96b2_977849ccd373" />
+        <ComponentRef Id="_libGLESv2.dll_0a1c9763_8b01_405a_85a4_0c187837430d" />
+        <ComponentRef Id="_resources.pak_d5248172_157d_4be1_9459_6045c0c4e12e" />
+        <ComponentRef Id="_snapshot_blob.bin_a440fdfb_4e0a_4ea7_a70d_f94974cb0319" />
+        <ComponentRef Id="_v8_context_snapshot.bin_c8773b49_e1b2_46d9_8114_0d253089a6b9" />
+        <ComponentRef Id="_vk_swiftshader.dll_1f6a0ff5_16c0_4e10_956d_a5b89db3e228" />
+        <ComponentRef Id="_vk_swiftshader_icd.json_2afe44da_8cda_4c41_b0a3_11e97f5cfb84" />
+        <ComponentRef Id="_vulkan_1.dll_35be588d_375f_4204_bbbc_1f68d46a6547" />
+        <ComponentRef Id="_Discord_RPC.exe_63d83e5e_29e2_46d6_93eb_2acc240266ec" />
+        <ComponentRef Id="_.installInfo.json_e03b8f12_e56b_43a6_bd14_b2cf5d04b52e" />
+        <ComponentRef Id="RegistryInstallPath" />
+        <ComponentRef Id="UninstallDisplayName" />
+        <ComponentRef Id="UninstallPublisher" />
+        <ComponentRef Id="UninstallDisplayVersion" />
+        <ComponentRef Id="UninstallModifyString" />
+        <ComponentRef Id="UninstallString" />
+        <ComponentRef Id="UninstallDisplayIcon" />
+        <ComponentRef Id="ApplicationShortcut" />
+        <ComponentRef Id="DesktopShortcut" />
+        <ComponentRef Id="PurgeOnUninstall" />
+      </Feature> 
+      <Feature Id="AutoUpdate" Title="Auto Update" Level="3" Description="Installs an auto-updater component and sets necesssary file system permissions.">
+        <ComponentRef Id="_msq.exe_4e9fa4c9_6029_4a34_9e34_61eba69013ad" />
+        <ComponentRef Id="SetUninstallDisplayVersionPermissions" />
+        <ComponentRef Id="AutoUpdateEnabled" />
+        <ComponentRef Id="SetFolderPermissions" />
+      </Feature>
+    </Feature> 
+  </Product>
+</Wix>
