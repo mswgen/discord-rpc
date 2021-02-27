@@ -15,10 +15,27 @@
                 "arch": "ia32"
             }
         ],
-        "icon": "logo.ico",
+        "icon": "build/icon.ico",
         "artifactName": "DiscordRpcSetup.${ext}"
     },
     "squirrelWindows": {
         "iconUrl": "https://github.com/${u}/${p}/blob/main/logo.ico?raw=true"
+    },
+    "linux": {
+        "target": [
+            {
+                "target": "deb",
+                "arch": "x64"
+            },
+            {
+                "target": "rpm",
+                "arch": "x64"
+            }
+        ],
+        "icon": "build/linux-icon",
+        "synopsis": "Discord RPC app",
+        "description": "An app for setting custom Discord Rich Presence",
+        "category": "Utility",
+        "artifactName": "discord-rpc.${ext}"
     }
 }

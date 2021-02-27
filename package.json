@@ -12,7 +12,10 @@
     "discord",
     "rpc"
   ],
-  "author": "Team int",
+  "author": {
+    "name": "Team int",
+    "email": "mswgen02@gmail.com"
+  },
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/Team-Union/discord-rpc/issues"
