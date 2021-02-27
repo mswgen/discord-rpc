@@ -27,13 +27,6 @@
     "update-electron-app": "^2.0.1"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^6.0.0-beta.54",
-    "@electron-forge/maker-deb": "^6.0.0-beta.54",
-    "@electron-forge/maker-dmg": "^6.0.0-beta.54",
-    "@electron-forge/maker-rpm": "^6.0.0-beta.54",
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.54",
-    "@electron-forge/maker-wix": "^6.0.0-beta.54",
-    "@electron-forge/maker-zip": "^6.0.0-beta.54",
     "electron": "^11.3.0",
     "electron-builder": "^22.9.1",
     "electron-builder-squirrel-windows": "^22.10.5",
@@ -44,10 +37,8 @@
   },
   "scripts": {
     "start": "electron .",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "build:win": "electron-builder -c -w && node msi.js",
-    "build:mac": "electron-builder -c -m",
-    "build:lnx": "electron-builder -c -l"
+    "build:win": "electron-builder -c -w --publish never && node msi.js",
+    "build:mac": "electron-builder -c -m --publish never",
+    "build:lnx": "electron-builder -c -l --publish never"
   }
 }

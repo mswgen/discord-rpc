@@ -16,7 +16,7 @@ const creator = new MSICreator({
     ui: {
         chooseDirectory: true
     },
-    appIconPath: path.join(__dirname, 'logo.ico')
+    appIconPath: path.join(__dirname, 'build/icon.ico')
 });
 creator.create().then(async () => {
     await creator.compile();
