@@ -25,8 +25,8 @@ jobs:
         with:
           name: lnx
           path: |
-            out/discord-rpc.deb
-            out/discord-rpc.rpm
+            out/discord-rpc_*.*.*_amd64.deb
+            out/discord-rpc-*.*.*.x86_64.rpm
   buildMac:
     name: macOS Application(.dmg)
     runs-on: macos-latest
@@ -92,6 +92,9 @@ jobs:
           BRANCH: build
           FOLDER: lnx
           CLEAN: true
+      - name: Deploy to PPA
+        run: |
+          git checkout
       - name: Download macOS Artifacts
         uses: actions/download-artifact@v2
         with:

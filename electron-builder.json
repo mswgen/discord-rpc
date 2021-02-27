@@ -35,8 +35,7 @@
         "icon": "build/linux-icon",
         "synopsis": "Discord RPC app",
         "description": "An app for setting custom Discord Rich Presence",
-        "category": "Utility",
-        "artifactName": "discord-rpc.${ext}"
+        "category": "Utility"
     },
     "mac": {
         "category": "public.app-category-utilities",
