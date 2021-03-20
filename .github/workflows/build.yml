@@ -16,8 +16,8 @@ jobs:
           persist-credentials: false 
       - name: Install Dependencies
         run: yarn
-      - name: Install rpm, fakeroot, and dpkg
-        run: sudo apt update -y && sudo apt install -y rpm fakeroot dpkg
+      - name: Install rpm, fakeroot, dpkg, and libarchive-tools
+        run: sudo apt update -y && sudo apt install -y rpm fakeroot dpkg libarchive-tools
       - name: Build
         run: yarn build:lnx
       - name: Upload Artifacts
@@ -27,6 +27,7 @@ jobs:
           path: |
             out/discord-rpc_*.*.*_amd64.deb
             out/discord-rpc-*.*.*.x86_64.rpm
+            out/discord-rpc-*.*.*.pacman
   buildMac:
     name: macOS Application(.dmg)
     runs-on: macos-latest
@@ -72,55 +73,32 @@ jobs:
         with:
           name: msi
           path: out/msi
-  deploy:
-    needs: [buildLnx, buildMac, buildWin]
+  publish:
+    name: Publish
+    needs: [buildLnx, buildWin, buildMac]
     runs-on: ubuntu-latest
     steps:
-      - name: Download Linux Artifacts
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: '0'
+      - name: Determine tag name
+        id: tagname
+        run: echo "::set-output name=name::$(node -e "console.log(require('./package.json').version)")"
+      - name: Create a new Tag
+        run: git tag v${{ steps.tagname.outputs.name }}
+      - name: Download Artifacts
         uses: actions/download-artifact@v2
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: lnx
-          path: lnx
-      - name: Deploy Linux Packages
-        uses: JamesIves/github-pages-deploy-action@3.7.1
-        with:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          BRANCH: build
-          FOLDER: lnx
-          CLEAN: true
-      - name: Download macOS Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: mac
-          path: mac
-      - name: Deploy macOS Application
-        uses: JamesIves/github-pages-deploy-action@3.7.1
-        with:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          BRANCH: build
-          FOLDER: mac
-          CLEAN: false
-      - name: Download Squirrel Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: squirrel
-          path: squirrel
-      - name: Deploy Windows Executable
-        uses: JamesIves/github-pages-deploy-action@3.7.1
-        with:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          BRANCH: build
-          FOLDER: squirrel
-          CLEAN: false
-      - name: Download MSI Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: msi
-          path: msi
-      - name: Deploy Windows Installer
-        uses: JamesIves/github-pages-deploy-action@3.7.1
-        with:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          BRANCH: build
-          FOLDER: msi
-          CLEAN: false
+          body: "변경사항: \n\n**다운로드/설치 전에 꼭 [여기](https://github.com/team-int/discord-rpc/blob/main/installation.md)를 읽어주세요!**"
+          draft: true
+          tag_name: ${{ steps.tagname.outputs.name }}
+          files: |
+            lnx/*
+            mac/*
+            squirrel/*
+            msi/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
